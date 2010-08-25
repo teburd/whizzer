@@ -48,8 +48,6 @@ def statistics(watcher, events):
     last = time.time()
     count = 0
     
-    
-
 if __name__ == "__main__":
     loop = pyev.default_loop()
     sighandler = whizzer.SignalHandler(loop)
