@@ -1,0 +1,21 @@
+Whizzer is a simple library built around the pyev module. Its named after 
+one of my favorite rollercoasters of all time.
+
+Purpose:
+Whizzer is meant to make writting fast non-blocking socket servers with pyev
+simpler than using pyev by itself. It provides a basic abstraction for a socket
+server, client handling, and the protocol that the server is meant to talk.
+
+It might look similiar in nature to Twisted. Thats because I believe Twisted 
+does things right in the case of socket server abstraction. However I wanted
+an event driven library that was smaller, better documented, focused
+entirely on sockets, and used pyev.
+
+It just happens that Python's up and coming futures PEP fit nicely in with
+the idea and I felt it would be useful when making something like an RPC
+library that used Whizzer.
+
+Anyways, here it all is, a Twisted, pyev based clone, that works with
+Python 3k and attempts to be PEP8 compliant.
+
+Improve at your discretion.

@@ -1,0 +1,8 @@
+syntax: glob
+build
+.lock-wscript
+*.swp
+*.pyc
+*.pyo
+*~
+*_build
