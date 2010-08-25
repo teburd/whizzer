@@ -30,8 +30,8 @@ Programming Language :: Python
 Programming Language :: Python :: 2
 Programming Language :: Python :: 3
 Topic :: Software Development :: Libraries :: Python Modules
-Topic :: Scientific/Engineering :: Mathematics
-Topic :: Scientific/Engineering :: Visualization
+Topic :: System :: Networking
+Topic :: Internet
 """.splitlines()))
 
 
