@@ -32,6 +32,7 @@ class SocketConnection(Connection):
     def __init__(self, loop, sock, max_size = 1024*512):
         self.loop = loop
         self.sock = sock
+        self.sock.setblocking(False)
         self.read_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._do_read)
         self.read_watcher.start()
         self.write_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._do_write)
@@ -41,9 +42,12 @@ class SocketConnection(Connection):
         self.error_fn = None
         self.closed = False
         self.err = None
+        self.writtable = True
 
     def write(self, buf):
         """Appends a bytes like object to the transport write buffer.
+
+        This actually only buffers if necessary. It avoids it if it can because it slows things down quite a bit.
 
         Raises BufferOverflowError if bytes like object would cause the buffer to grow beyond the
         specified maximum.
@@ -52,24 +56,42 @@ class SocketConnection(Connection):
         if self.closed:
             raise ConnectionClosedError()
 
-        if len(buf) + len(self.write_buffer) > self.max_size:
-            raise BufferOverflowError()
-        else:
-            self.write_buffer.extend(buf)
+        result = 0
+        if self.writtable:
+            try:
+                result = self._write(buf)
+            except IOError as e:
+                self._do_error(e)
+                return
+            except OSError as e:
+                self._do_error(e)
+                return
 
-        if not self.write_watcher.active:
-            self.write_watcher.start()
-    
+        if result != len(buf):
+            self.writtable = False
+            if len(buf) + len(self.write_buffer) > self.max_size:
+                raise BufferOverflowError()
+            else:
+                self.write_buffer.extend(buf)
+
+            if not self.write_watcher.active:
+                self.write_watcher.start()
+        
     def _do_write(self, watcher, events):
         if self.closed:
             return
+        if len(self.write_buffer) == 0:
+            self.write_watcher.stop()
+            self.writtable = True
+
         try:
-            written = self.sock.send(self.write_buffer)
+            sent = self._write(self.write_buffer)
             self.write_buffer = self.write_buffer[written:]
-            if len(self.write_buffer) == 0:
-                self.write_watcher.stop()
         except socket.error as e:
             self._do_error(e)
+
+    def _write(self, buf):
+        return self.sock.send(bytes(buf))
 
     def _do_read(self, watcher, events):
         if self.closed:

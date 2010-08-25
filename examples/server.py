@@ -23,6 +23,8 @@ import sys
 import time
 
 import pyev
+import cProfile
+import pstats
 
 sys.path.insert(0, '..')
 
@@ -59,4 +61,5 @@ if __name__ == "__main__":
     stats_watcher = pyev.Timer(2.0, 2.0, loop, statistics)
     stats_watcher.start()
 
-    loop.loop()
+    cProfile.run('loop.loop()', 'server_profile')
+    pstats.Stats('server_profile').sort_stats('time').print_stats()
