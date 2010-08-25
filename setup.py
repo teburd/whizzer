@@ -22,11 +22,25 @@
 
 from distutils.core import setup
 
+CLASSIFIERS = filter(None, map(str.strip,
+"""                 
+Intended Audience :: Developers
+License :: OSI Approved :: MIT License
+Programming Language :: Python
+Programming Language :: Python :: 2
+Programming Language :: Python :: 3
+Topic :: Software Development :: Libraries :: Python Modules
+Topic :: Scientific/Engineering :: Mathematics
+Topic :: Scientific/Engineering :: Visualization
+""".splitlines()))
+
+
 setup(name='whizzer',
-      version='0.1-dev',
+      version='0.2',
       description='Fast event driven socket server framework based on pyev',
       author='Tom Burdick',
       author_email='thomas.burdick@gmail.com',
-      url='http://github.com/bfrog/whizzer',
+      url='http://bitbucket.org/bfrog/whizzer',
       packages=['whizzer'],
+      classifiers=CLASSIFIERS,
      )
