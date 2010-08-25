@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 
 import sys
+import time
 
 import pyev
 
@@ -27,9 +28,25 @@ sys.path.insert(0, '..')
 
 import whizzer
 
+last = time.time()
+count = 0
+
 class EchoProtocol(whizzer.Protocol):
     def data(self, data):
+        global count
+        count += 1
         self.transport.write(data)
+
+def statistics(watcher, events):
+    global count
+    global last
+    diff = time.time() - last
+    eps = count/diff
+    print("echos per second " + str(eps))
+    last = time.time()
+    count = 0
+    
+    
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
@@ -38,4 +55,8 @@ if __name__ == "__main__":
     factory.protocol = EchoProtocol
     server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
     sighandler.register_server(server)
+
+    stats_watcher = pyev.Timer(2.0, 2.0, loop, statistics)
+    stats_watcher.start()
+
     loop.loop()

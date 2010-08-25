@@ -21,13 +21,15 @@
 
 import pyev
 import socket
-import interfaces
+from .interfaces import Protocol as IProtocol
+from .interfaces import ProtocolFactory as IProtocolFactory
+
 
 """Base protocol objects. A new protocol implementation should implement these objects missing
 methods or overload them as needed.
 """
 
-class Protocol(interfaces.Protocol):
+class Protocol(IProtocol):
     """Basis of all client handling functionality."""
     def __init__(self, loop):
         self.loop = loop
@@ -47,7 +49,7 @@ class Protocol(interfaces.Protocol):
         self.transport.close()
         self.connected = False
 
-class ProtocolFactory(interfaces.ProtocolFactory):
+class ProtocolFactory(IProtocolFactory):
     """Constructor of protocols."""
 
     def __init__(self, loop):

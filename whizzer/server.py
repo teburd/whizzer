@@ -24,10 +24,10 @@ import socket
 
 import pyev
 
-import interfaces 
-import errors
+from .interfaces import Connection
+from .errors import ConnectionClosedError, BufferOverflowError
 
-class SocketConnection(interfaces.Connection):
+class SocketConnection(Connection):
     """A buffered writtable transport."""
     def __init__(self, loop, sock, max_size = 1024*512):
         self.loop = loop
@@ -50,10 +50,10 @@ class SocketConnection(interfaces.Connection):
 
         """
         if self.closed:
-            raise errors.ConnectionClosedError()
+            raise ConnectionClosedError()
 
         if len(buf) + len(self.write_buffer) > self.max_size:
-            raise errors.BufferOverflowError()
+            raise BufferOverflowError()
         else:
             self.write_buffer.extend(buf)
 
