@@ -22,8 +22,8 @@
 import socket
 
 for x in range(0, 1000):
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.connect('echo')
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(('127.0.0.1', 2000))
     s = b'Hello World\n'
     for x in range(0, 1000):
         sock.send(s)

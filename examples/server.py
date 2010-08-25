@@ -36,6 +36,6 @@ if __name__ == "__main__":
     sighandler = whizzer.SignalHandler(loop)
     factory = whizzer.ProtocolFactory(loop)
     factory.protocol = EchoProtocol
-    server = whizzer.UnixServer(loop, factory, "echo")
+    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
     sighandler.register_server(server)
     loop.loop()
