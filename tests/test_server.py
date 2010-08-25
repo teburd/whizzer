@@ -132,7 +132,7 @@ class TestSocketConnection(unittest.TestCase):
 
     def test_overflow_write(self):
         t = server.SocketConnection(loop, self.ssock)
-        self.assertRaises(errors.BufferOverflowError, t.write, ([x for x in range(0, 1024*1024)]))
+        self.assertRaises(errors.BufferOverflowError, t.write, bytes([x for x in range(0, 1024*1024)]))
 
     def test_read(self):
         t = server.SocketConnection(loop, self.ssock)
@@ -204,7 +204,7 @@ class TestServerConnection(unittest.TestCase):
     def test_overflow_write(self):
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
-        self.assertRaises(errors.BufferOverflowError, t.write, ([x for x in range(0, 1024*1024)]))
+        self.assertRaises(errors.BufferOverflowError, t.write, bytes([x for x in range(0, 1024*1024)]))
 
     def test_read(self):
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)

@@ -42,12 +42,35 @@ class SocketConnection(Connection):
         self.error_fn = None
         self.closed = False
         self.err = None
-        self.writtable = True
+        self.write = self.unbuffered_write
 
-    def write(self, buf):
+
+    def unbuffered_write(self, buf):
+        """Performs an unbuffered write, the default unless socket.send does 
+        not send everything, in which case an unbuffered write is done and the
+        write method is set to be a buffered write until the buffer is empty
+        once again.
+        """
+        if self.closed:
+            raise ConnectionClosedError()
+
+        result = 0
+        try:
+            result = self.sock.send(buf)
+        except IOError as e:
+            self._do_error(e)
+            return
+        except OSError as e:
+            self._do_error(e)
+            return
+
+        if result != len(buf):
+            self.write = self.buffered_write
+            self.write_watcher.start()
+            self.write(buf[result:])
+
+    def buffered_write(self, buf):
         """Appends a bytes like object to the transport write buffer.
-
-        This actually only buffers if necessary. It avoids it if it can because it slows things down quite a bit.
 
         Raises BufferOverflowError if bytes like object would cause the buffer to grow beyond the
         specified maximum.
@@ -56,42 +79,25 @@ class SocketConnection(Connection):
         if self.closed:
             raise ConnectionClosedError()
 
-        result = 0
-        if self.writtable:
-            try:
-                result = self._write(buf)
-            except IOError as e:
-                self._do_error(e)
-                return
-            except OSError as e:
-                self._do_error(e)
-                return
-
-        if result != len(buf):
-            self.writtable = False
-            if len(buf) + len(self.write_buffer) > self.max_size:
-                raise BufferOverflowError()
-            else:
-                self.write_buffer.extend(buf)
-
-            if not self.write_watcher.active:
-                self.write_watcher.start()
-        
+        if len(buf) + len(self.write_buffer) > self.max_size:
+            raise BufferOverflowError()
+        else:
+            self.write_buffer.extend(buf)
+    
     def _do_write(self, watcher, events):
         if self.closed:
             return
-        if len(self.write_buffer) == 0:
-            self.write_watcher.stop()
-            self.writtable = True
-
+       
         try:
-            sent = self._write(self.write_buffer)
+            sent = self.sock.send(bytes(buf))
             self.write_buffer = self.write_buffer[written:]
-        except socket.error as e:
+            if len(self.write_buffer) == 0:
+                self.write_watcher.stop()
+                self.write = self.unbuffered_write
+        except IOError as e:
             self._do_error(e)
-
-    def _write(self, buf):
-        return self.sock.send(bytes(buf))
+        except OSError as e:
+            self._do_error(e)
 
     def _do_read(self, watcher, events):
         if self.closed:
