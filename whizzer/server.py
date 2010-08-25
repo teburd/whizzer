@@ -107,11 +107,9 @@ class ServerConnection(SocketConnection):
         SocketConnection.__init__(self, loop, sock)
         self.server = server
         self.protocol = protocol
-        print("server connection, protocol type is " + self.protocol.__class__.__name__)
 
     def read(self, data):
         """Pass along the data from the real connection to the protocol."""
-        print("calling protocol.data")
         self.protocol.data(data)
 
     def error(self, error):
@@ -119,7 +117,6 @@ class ServerConnection(SocketConnection):
         tell the protocol.
         """
 
-        print("connection had an error, " + str(error))
         self.protocol.connection_lost(error)
         self.protocol.transport = None
         self.server.connection_error(self, error)
@@ -133,7 +130,6 @@ class ServerConnection(SocketConnection):
         """
         SocketConnection.close(self)
 
-        print("calling protocol connection lost from close")
         self.protocol.connection_lost()
         self.protocol.transport = None
         self.server.connection_lost(self)
@@ -162,7 +158,6 @@ class SocketServer(SocketConnection):
         connection object that holds on to and uses the protocol.
 
         """
-        print("accepting connection")
         protocol = self.factory.build()
         try:
             sock, addr = self.sock.accept()
@@ -175,7 +170,6 @@ class SocketServer(SocketConnection):
             
     def error(self, error):
         """The socket we're listening to had an error, so kill all the clients and clean up."""
-        print("server had an error, " + str(error))
         self.closing = True
         for connection in self.connections:
             connection.close()
@@ -190,13 +184,11 @@ class SocketServer(SocketConnection):
 
     def connection_error(self, connection, error):
         """Handle an error on one of the client connections gracefully."""
-        print("client connection error, " + str(error))
         connection.server = None
         self.connections.remove(connection)
 
     def connection_lost(self, connection):
         """Handle a connection lost on one of the client connections gracefully."""
-        print("client connection lost")
         connection.server = None
         if not self.closing:
             self.connections.remove(connection)
