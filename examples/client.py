@@ -19,13 +19,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import socket
+import sys
+import pyev
 
-for x in range(0, 1000):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('127.0.0.1', 2000))
-    s = b'Hello World\n'
-    for x in range(0, 1000):
-        sock.send(s)
-        print(sock.recv(len(s)))
-    sock.close()
+sys.path.insert(0, '..')
+import whizzer
+
+class EchoClientProtocol(whizzer.Protocol):
+    def connection_made(self):
+        """When the connection is made, send something."""
+        self.transport.write(b'Echo Me')
+        
+    def data(self, data):
+        print("echo'd " + data)
+        self.lose_connection()
+
+
+def connect_a_client(watcher, events):
+    factory = watcher.data
+    client = whizzer.TcpClient(loop, factory, "127.0.0.1", 2000)
+    client.connect()
+
+if __name__ == "__main__":
+    loop = pyev.default_loop()
+    factory = whizzer.ProtocolFactory(loop)
+    factory.protocol = EchoClientProtocol
+    sighandler = whizzer.SignalHandler(loop)
+    timer = pyev.Timer(1.0, 0.01, loop, connect_a_client, factory)
+    timer.start()
+
+    loop.loop()

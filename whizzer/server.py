@@ -20,13 +20,14 @@
 # THE SOFTWARE.
 
 import os
+import socket
 
 from .connections import SocketConnection
 from .errors import ConnectionClosedError, BufferOverflowError
 
 class ServerConnection(SocketConnection):
-    """Represents a connection to the server. A SocketConnection template
-    implementation.
+    """Represents a connection to the server from a remote client. 
+    A SocketConnection template implementation.
     """
     def __init__(self, loop, sock, protocol, server):
         SocketConnection.__init__(self, loop, sock)
