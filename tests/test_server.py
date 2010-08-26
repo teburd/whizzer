@@ -222,6 +222,5 @@ class TestServerConnection(unittest.TestCase):
         self.assertTrue(self.protocol.losses == 1)
         self.assertTrue(self.server.errors == 1)
 
-
 if __name__ == '__main__':
     unittest.main()
