@@ -21,13 +21,15 @@ class Dispatch(object):
         """
         return self.methods[method](args, kwargs)
     
-    def add(self, name, fn):
+    def add(self, fn, name=None):
         """Add a method that the dispatcher will know about.
 
         name -- alias for the function
         fn -- a callable object
 
         """
+        if not name:
+            name = fn.__name__
         self.methods[name] = fn
 
 
@@ -37,8 +39,11 @@ class ObjectDispatch(Dispatch):
     automatically add those.
 
     """
-
     def __init__(self, obj):
+        """Instantiate a object dispatcher, takes an object
+        with methods marked using the remote decorator
+
+        """
         Dispatch.__init__(self)
         self.obj = obj
         attrs = dir(self.obj)
@@ -47,12 +52,23 @@ class ObjectDispatch(Dispatch):
             if hasattr(a, 'remote'):
                 self.add(a, a.remote['name'])
 
+class RPCProtocol(object):
+    def __init__(self, loop, dispatch):
+        LengthProtocol.__init__(self, loop)
+        self.dispatch = dispatch
+
+    def message(self, message):
+        """Handle a message by decoding it in to arguments the dispatcher understands."""
+
+    def proxy(self):
+        """Return a proxy object."""
+
 
 class MarshalRPCProtocol(object):
     pass
 
 class JSONRPCProtocol(object):
-
+    pass
 
 class RPCClient(object):
     """A general RPC client."""
