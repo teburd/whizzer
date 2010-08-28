@@ -64,11 +64,52 @@ class RPCProtocol(object):
         """Return a proxy object."""
 
 
+class Proxy(object):
+    timeout = 2.0 
+    
+    def call(self, method, *args, **kwargs):
+        """Perform a synchronous remote call where the returned value is given immediately.
+
+        This may block for sometime in certain situations. If it takes more than the Proxies
+        set timeout then a TimeoutError is raised.
+
+        Any exceptions the remote call raised that can be sent over the wire are raised.
+
+        Internally this calls begin_call(method, *args, **kwargs).result(timeout=self.timeout)
+
+        """
+
+    def notify(self, method, *args, **kwargs):
+        """Perform a synchronous remote call where value no return value is desired.
+
+        While faster than call it still blocks until the remote callback has been sent.
+
+        This may block for sometime in certain situations. If it takes more than the Proxies
+        set timeout then a TimeoutError is raised.
+
+        """
+
+    def begin_call(self, method, *args, **kwargs):
+        """Perform an asynchronous remote call where the return value is not known yet.
+
+        This returns immediately with a Future object. The future object may then be
+        used to attach a callback, force waiting for the call, or check for exceptions.
+
+        """
+
+    def begin_notify(self, method, *args, **kwargs):
+        """Perform an asynchronous remote call where no return value is expected.
+
+        This returns immediately with a Future object. The future object may then be
+        used to attach a callback, force waiting for the call, or check for exceptions.
+
+        The Future object's result is set to None when the notify message has been sent.
+
+        """
+
 class MarshalRPCProtocol(object):
     pass
 
 class JSONRPCProtocol(object):
     pass
 
-class RPCClient(object):
-    """A general RPC client."""
