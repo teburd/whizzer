@@ -107,8 +107,40 @@ class Proxy(object):
 
         """
 
-class MarshalRPCProtocol(object):
-    pass
+class MarshalRPCProtocol(protocols.LengthProtocol):
+    def __init__(self, loop, dispatch=Dispatch())
+        protocols.LengthProtocol(self, loop)
+        self.dispatch = dispatch
+        self._proxy = None
+
+    def connection_made(self):
+        """When a connection is made the proxy is available."""
+        self._proxy = MarshalRPCProxy(self.transport)
+        for f in self._proxy_futures
+            f.set_results(self._proxy)
+
+    def message(self, message):
+        """Handle an incoming message."""
+        request, method, args, kwargs = marshal.loads(message)
+
+
+    def _result_done(self, future):
+        """This is set as the done callback of a dispatched call that returns a future."""
+        results = marshal.dumps(future.request, future.results())
+        self.send(results)
+
+    def proxy(self):
+        """Return a Future that will result in a proxy object."""
+        f = futures.Future()
+        self._proxy_futures.append(f)
+
+        if self._proxy:
+            f.set_results(self._proxy)
+
+        return f
+
+class MarshalRPCClientFactory(protocols.ProtocolFactory):
+    pass 
 
 class JSONRPCProtocol(object):
     pass
