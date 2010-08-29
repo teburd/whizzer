@@ -34,6 +34,18 @@ class Dispatch(object):
             name = fn.__name__
         self.methods[name] = fn
 
+def remote(fn, name=None, types=None):
+    """Decorator that adds a remote attribute to a function.
+    
+    fn -- function being decorated
+    name -- aliased name of the function, used for remote proxies
+    types -- a argument type specifier, can be used to ensure
+             arguments are of the correct type
+    """
+    if not name:
+        name = fn.__name__
+    fn.remote = {"name":name, "types":types}
+    return fn
 
 class ObjectDispatch(Dispatch):
     """Object dispatch takes an object with functions marked
@@ -45,6 +57,8 @@ class ObjectDispatch(Dispatch):
         """Instantiate a object dispatcher, takes an object
         with methods marked using the remote decorator
 
+        obj -- Object with methods decorated by the remote decorator.
+
         """
         Dispatch.__init__(self)
         self.obj = obj
@@ -53,18 +67,6 @@ class ObjectDispatch(Dispatch):
             a = getattr(self.obj, attr)
             if hasattr(a, 'remote'):
                 self.add(a, a.remote['name'])
-
-class RPCProtocol(object):
-    def __init__(self, loop, dispatch):
-        LengthProtocol.__init__(self, loop)
-        self.dispatch = dispatch
-
-    def message(self, message):
-        """Handle a message by decoding it in to arguments the dispatcher understands."""
-
-    def proxy(self):
-        """Return a proxy object."""
-
 
 class Proxy(object):
     timeout = 2.0 
@@ -109,6 +111,9 @@ class Proxy(object):
 
         """
 
+class MarshalRPCProxy(Proxy):
+    pass
+
 class MarshalRPCProtocol(LengthProtocol):
     def __init__(self, loop, dispatch=Dispatch()):
         LengthProtocol(self, loop)
@@ -122,17 +127,26 @@ class MarshalRPCProtocol(LengthProtocol):
             f.set_results(self._proxy)
 
     def message(self, message):
-        """Handle an incoming message."""
+        """Handle an incoming message (remote call request)."""
         request, method, args, kwargs = marshal.loads(message)
+        result = self.dispatch.call(method, args, kwargs)
 
+        if isinstance(result, Future):
+            future.request = request
+            future.add_done_callback(self._result.done)
+        else:
+            self._send_results(request, result)
 
     def _result_done(self, future):
         """This is set as the done callback of a dispatched call that returns a future."""
-        results = marshal.dumps(future.request, future.results())
+        self._send_results(future.request, future.results())
+
+    def _send_results(self, request, results):
+        results = marshal.dumps(request, results)
         self.send(results)
 
     def proxy(self):
-        """Return a Future that will result in a proxy object."""
+        """Return a Future that will result in a proxy object in the future."""
         f = futures.Future()
         self._proxy_futures.append(f)
 
