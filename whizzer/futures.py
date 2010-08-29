@@ -21,6 +21,7 @@
 
 import pyev
 import sys
+import signal
 
 class CancelledError(Exception):
     """CancelledError describes an error state for a future object."""
@@ -121,7 +122,19 @@ class Future(object):
         self._result = None
         self._exception = None
         self._wait = False
+        self._timer = None
+        self.sigint_watcher = pyev.Signal(signal.SIGINT, self._loop, self._interrupt)
+        self.sigint_watcher.start()
 
+    def _interrupt(self, watcher, events):
+        """A signal may be caught while waiting for something, if so, its assumed the future is cancelled."""
+        print "got interrupt, cancelling"
+        if not self._done and self._wait:
+            self._cancelled = True
+            self._wait = False
+        else:
+            self.cancel()
+        
     def cancel(self):
         """Cancel the future results.
         
@@ -212,7 +225,8 @@ class Future(object):
         for callback in self._done_callbacks:
             callback(self)
    
-    def _clear_wait(self, *args):
+    def _clear_wait(self, watcher, events):
+        print "got timeout"
         self._wait = False
 
     def _do_wait(self, timeout):
@@ -223,21 +237,25 @@ class Future(object):
         timeout is done.
         
         """
+
         if self._cancelled:
             raise CancelledError()
 
         if not self._done: 
             self._wait = True
     
-
+            print timeout
             if timeout and timeout > 0.0: 
-                timer = pyev.Timer(timeout, 0.0, self._loop, self._clear_wait, None)
-                timer.start()
+                print "setting up a timeout"
+                self._timer = pyev.Timer(timeout, 0.0, self._loop, self._clear_wait, None)
+                self._timer.start()
 
-            while self._wait and not self._done:
+            while self._wait and not self._done and not self._cancelled:
                 self._loop.loop(pyev.EVLOOP_ONESHOT)
-           
-        if not self._done:
+          
+        if self._cancelled:
+            raise CancelledError()
+        elif not self._done:
             raise TimeoutError()
 
     def result(self, timeout=None):

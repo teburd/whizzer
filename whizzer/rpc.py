@@ -127,7 +127,7 @@ class MarshalRPCProxy(Proxy):
         self.timeout = None
 
     def set_timeout(self, timeout):
-        self.timeout
+        self.timeout = timeout
 
     def call(self, method, *args, **kwargs):
         """Perform a synchronous remote call where the returned value is given immediately.

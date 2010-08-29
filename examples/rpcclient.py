@@ -34,5 +34,5 @@ if __name__ == "__main__":
     client = whizzer.UnixClient(loop, factory, "marshal_adder")
     client.connect()
     proxy = factory.proxy(0).result()
-    proxy.set_timeout(2.0)
+    proxy.set_timeout(1.0)
     print proxy.call("add", 2, 3)
