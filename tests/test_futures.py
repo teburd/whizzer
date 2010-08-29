@@ -78,20 +78,20 @@ class TestFuture(unittest.TestCase):
 
     def test_future_result(self):
         f = futures.Future(self.loop, add_nums, 1, 2)
-        t = pyev.Timer(2.0, 0.0, self.loop, lambda watcher, events: f.perform())
+        t = pyev.Timer(0.5, 0.0, self.loop, lambda watcher, events: f.perform())
         t.start()
 
-        self.assertRaises(futures.TimeoutError, f.result, 0.5)
+        self.assertRaises(futures.TimeoutError, f.result, 0.2)
         self.assertEqual(f.result(), 3)
         self.assertEqual(f.result(), 3)
         self.assertEqual(f.result(1.0), 3)
 
     def test_future_exception(self):
         f = futures.Future(self.loop, throw_always)
-        t = pyev.Timer(2.0, 0.0, self.loop, lambda watcher, events: f.perform())
+        t = pyev.Timer(0.5, 0.0, self.loop, lambda watcher, events: f.perform())
         t.start()
 
-        self.assertRaises(futures.TimeoutError, f.exception, 0.5)
+        self.assertRaises(futures.TimeoutError, f.exception, 0.2)
 
         self.assertTrue(isinstance(f.exception(), Exception))
         self.assertTrue(isinstance(f.exception(), Exception))

@@ -83,9 +83,5 @@ class TestDispatch(unittest.TestCase):
         self.assertEqual(a.call(self.makedict.__name__, **kwargs), kwargs)
         self.assertEqual(self.count, 1)
 
-
-
-
-
-
-
+if __name__ == '__main__':
+    unittest.main()
