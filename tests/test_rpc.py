@@ -42,6 +42,14 @@ class TestDispatch(unittest.TestCase):
     def func(self):
         self.count += 1
 
+    def add(self, a, b):
+        self.count += 1
+        return a+b
+
+    def makedict(self, **kwargs):
+        self.count += 1
+        return kwargs
+
     def test_add_noname(self):
         a = rpc.Dispatch()
         a.add(self.func)
@@ -55,3 +63,29 @@ class TestDispatch(unittest.TestCase):
         self.assertEqual(len(a.methods), 1)
         self.assertTrue(self.func in a.methods.values())
         self.assertTrue("somebogusname" in a.methods.keys())
+
+    def test_call_noargs(self):
+        a = rpc.Dispatch()
+        a.add(self.func)
+        a.call(self.func.__name__)
+        self.assertEqual(self.count, 1)
+    
+    def test_call_args(self):
+        a = rpc.Dispatch()
+        a.add(self.add)
+        self.assertEqual(a.call(self.add.__name__, 1, 2), 3)
+        self.assertEqual(self.count, 1)
+
+    def test_call_kwargs(self):
+        a = rpc.Dispatch()
+        kwargs = {'test':1, 'you':2}
+        a.add(self.makedict)
+        self.assertEqual(a.call(self.makedict.__name__, **kwargs), kwargs)
+        self.assertEqual(self.count, 1)
+
+
+
+
+
+
+

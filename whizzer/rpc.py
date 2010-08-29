@@ -1,4 +1,6 @@
 import marshal
+from .protocols import LengthProtocol
+from .protocol import ProtocolFactory
 
 class Dispatch(object):
     """Basic method dispatcher."""
@@ -19,7 +21,7 @@ class Dispatch(object):
         May raise an exception if the method isn't in the dict.
 
         """
-        return self.methods[method](args, kwargs)
+        return self.methods[method](*args, **kwargs)
     
     def add(self, fn, name=None):
         """Add a method that the dispatcher will know about.
@@ -107,16 +109,16 @@ class Proxy(object):
 
         """
 
-class MarshalRPCProtocol(protocols.LengthProtocol):
-    def __init__(self, loop, dispatch=Dispatch())
-        protocols.LengthProtocol(self, loop)
+class MarshalRPCProtocol(LengthProtocol):
+    def __init__(self, loop, dispatch=Dispatch()):
+        LengthProtocol(self, loop)
         self.dispatch = dispatch
         self._proxy = None
 
     def connection_made(self):
         """When a connection is made the proxy is available."""
         self._proxy = MarshalRPCProxy(self.transport)
-        for f in self._proxy_futures
+        for f in self._proxy_futures:
             f.set_results(self._proxy)
 
     def message(self, message):
@@ -139,7 +141,7 @@ class MarshalRPCProtocol(protocols.LengthProtocol):
 
         return f
 
-class MarshalRPCClientFactory(protocols.ProtocolFactory):
+class MarshalRPCClientFactory(ProtocolFactory):
     pass 
 
 class JSONRPCProtocol(object):
