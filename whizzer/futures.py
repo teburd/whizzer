@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 
 import pyev
+import sys
 
 class CancelledError(Exception):
     """CancelledError describes an error state for a future object."""
@@ -36,10 +37,7 @@ class RuntimeError(Exception):
 class Executor(object):
     def __init__(self, loop):
         self._loop = loop
-        self._submits = []
-        self._submit_laters = []
-        self._submit_repeats = []
-        self._maps = []
+        self._watchers = set()
 
     def submit(self, fn, *args, **kwargs):
         """Submit a function to be executed sometime in the future.
@@ -47,29 +45,43 @@ class Executor(object):
         Returns a Future object.
 
         """
-        self._
-
-    def submit_later(self, delay, fn, *args, **kwargs):
+        return self._submit(0.0, 0.0, fn, args, kwargs)
+        
+    def submit_delay(self, delay, fn, *args, **kwargs):
         """Perform a call in the future with a given delay in seconds.
 
         Returns a Future object
 
         """
+        return self._submit(delay, 0.0, fn, args, kwargs)
 
+    def _submit(self, delay, repeat_delay, fn, args, kwargs):
+        future = Future(self._loop)
+        watcher = pyev.Timer(delay, repeat_delay, self._loop, self._perform, (future, fn, args, kwargs))
+        watcher.start()
+        self._watchers.add(watcher)
+        return future
 
-    def submit_repeat(self, repeat_delay, fn, *args, **kwargs):
-        """Submit a function to be repeated every repeat_delay seconds.
+    def _perform(self, watcher, events):
+        try:
+            (future, fn, args, kwargs) = watcher.data
+            if future.done():
+                self._watchers.remove(watcher)
+                return
 
-        Returns a future, the results of which is another future. This is
-        repeated ad-infinium until Future.cancel() is called at which point
-        the repeating call is cancelled.
+            if not future.set_running_or_notify_cancel():
+                self._watchers.remove(watcher)
+                return
+            try:
+                future.set_result(fn(*args, **kwargs))
+            except Exception as e:
+                future.set_exception(e)
+            if watcher.repeat == 0.0:
+                self._watchers.remove(watcher)
+        except Exception as e:
+            sys.stderr.write(str(e))
 
-        If the call results in an exception, the repeating function is
-        cancelled and no longer repeats.
-
-        """
-
-    def map(self, fn, iterables, timeout=None):
+    def map(self, fn, timeout=None, *iterables):
         """Apply a function to each element in an iterable.
 
         Applies a function to each element in an iterable over time.
@@ -99,11 +111,8 @@ class Future(object):
     python 3.1.
 
     """
-    def __init__(self, loop, fn, *args, **kwargs):
+    def __init__(self, loop):
         self._loop = loop
-        self._fn = fn
-        self._args = args
-        self._kwargs = kwargs
         self._cancelled = False
         self._cancelled_callbacks = []
         self._running = False
@@ -153,8 +162,6 @@ class Future(object):
         If the future has already completed or been cancelled then fn will be
         called immediately.
         """
-        assert(hasattr(fn,'__call__'))
-
         self._done_callbacks.append(fn)
 
     def set_running_or_notify_cancel(self):
@@ -195,7 +202,6 @@ class Future(object):
         self._exception = exception
         self.set_done()
 
-
     def set_done(self):
         """Sets the status of the future as being completed."""
         self._done = True
@@ -205,32 +211,7 @@ class Future(object):
     def _perform_callbacks(self):
         for callback in self._done_callbacks:
             callback(self)
-
-    def perform(self):
-        """Performs the function and sets the result. 
-        
-        If the future has been cancelled then perform returns False.
-        If the future has already been performed upon returns False.
-        Otherwise perform returns True signifying the function
-        has been performed.
-
-        All exceptions raised by the function are caught.
-
-        """
-        if self._done:
-            raise PerformedError()
-
-        if not self.set_running_or_notify_cancel():
-            raise CancelledError()
-        
-        try:
-            result = self._fn(*self._args, **self._kwargs)
-            self.set_result(result)
-        except Exception as e:
-            self.set_exception(e)
-        
-        return True
-    
+   
     def _clear_wait(self, *args):
         self._wait = False
 

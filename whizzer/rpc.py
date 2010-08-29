@@ -1,6 +1,10 @@
 import marshal
 from .protocols import LengthProtocol
 from .protocol import ProtocolFactory
+from .futures import Future
+
+class RPCError(Exception):
+    pass
 
 class Dispatch(object):
     """Basic method dispatcher."""
@@ -21,6 +25,7 @@ class Dispatch(object):
         May raise an exception if the method isn't in the dict.
 
         """
+        print(method + str(args)+str(kwargs))
         return self.methods[method](*args, **kwargs)
     
     def add(self, fn, name=None):
@@ -69,6 +74,8 @@ class ObjectDispatch(Dispatch):
                 self.add(a, a.remote['name'])
 
 class Proxy(object):
+    def set_timeout(self, timeout):
+        """Set a timeout for all synchronous calls, by default there is none."""
     
     def call(self, timeout, method, *args, **kwargs):
         """Perform a synchronous remote call where the returned value is given immediately.
@@ -115,8 +122,14 @@ class MarshalRPCProxy(Proxy):
         self.loop = loop
         self.protocol = protocol
         self.calls = set()
+        self.request_num = 0
+        self.requests = dict()
+        self.timeout = None
 
-    def call(self, timeout, method, *args, **kwargs):
+    def set_timeout(self, timeout):
+        self.timeout
+
+    def call(self, method, *args, **kwargs):
         """Perform a synchronous remote call where the returned value is given immediately.
 
         This may block for sometime in certain situations. If it takes more than the Proxies
@@ -127,7 +140,7 @@ class MarshalRPCProxy(Proxy):
         Internally this calls begin_call(method, *args, **kwargs).result(timeout=self.timeout)
 
         """
-        return self.begin_call(method, *args, **kwargs).result(timeout)
+        return self.begin_call(method, *args, **kwargs).result(self.timeout)
 
     def notify(self, timeout, method, *args, **kwargs):
         """Perform a synchronous remote call where value no return value is desired.
@@ -151,7 +164,7 @@ class MarshalRPCProxy(Proxy):
         f.request = self.request_num
         self.request_num += 1
         self.requests[f.request] = f
-        msg = marshal.dumps((f.request, method, args, kwargs))
+        msg = marshal.dumps((False, f.request, method, args, kwargs))
         self.protocol.send(msg)
         return f
 
@@ -167,7 +180,7 @@ class MarshalRPCProxy(Proxy):
         f = Future(self.loop)
         f.request = self.request_num
         self.request_num += 1
-        msg = marshal.dumps((f.request, False, False, (method, args, kwargs)))
+        msg = marshal.dumps((False, f.request, method, args, kwargs))
         self.protocol.send(msg)
         f.set_result(None)
         return f
@@ -179,28 +192,31 @@ class MarshalRPCProxy(Proxy):
             self.requests[request].set_result(result)
         else:
             self.requests[request].set_exception(RPCException(result))
+        del self.requests[request]
 
 
 class MarshalRPCProtocol(LengthProtocol):
-    def __init__(self, loop, dispatch=Dispatch()):
-        LengthProtocol(self, loop)
+    def __init__(self, loop, factory, dispatch=Dispatch()):
+        LengthProtocol.__init__(self, loop)
+        self.factory = factory
         self.dispatch = dispatch
         self._proxy = None
+        self._proxy_futures = []
 
     def connection_made(self):
         """When a connection is made the proxy is available."""
-        self._proxy = MarshalRPCProxy(self)
+        self._proxy = MarshalRPCProxy(self.loop, self)
         for f in self._proxy_futures:
-            f.set_results(self._proxy)
+            f.set_result(self._proxy)
 
     def message(self, message):
         """Handle an incoming message (remote call request)."""
         msg = marshal.loads(message)
-        request, isresult, iserror, pkg  = msg
-        if isresult: # result flag set to be true
+        print msg
+        if msg[0]: # result flag set to be true
             self._proxy.results(msg) 
         else:
-            method, args, kwargs = pkg
+            resultflag, request, method, args, kwargs = msg 
 
             result = None
             iserror = False
@@ -224,16 +240,19 @@ class MarshalRPCProtocol(LengthProtocol):
             self._send_results(future.request, False, future.result())
 
     def _send_results(self, request, iserror, results):
-        results = marshal.dumps(request, True, iserror, results)
+        if iserror:
+            results = marshal.dumps(True, request, results, None)
+        else:
+            results = marshal.dumps(True, request, None, results)
         self.send(results)
 
     def proxy(self):
         """Return a Future that will result in a proxy object in the future."""
-        f = futures.Future()
+        f = Future(self.loop)
         self._proxy_futures.append(f)
 
         if self._proxy:
-            f.set_results(self._proxy)
+            f.set_result(self._proxy)
 
         return f
 
@@ -243,9 +262,10 @@ class MarshalRPCProtocol(LengthProtocol):
         self.factory = None
 
 class RPCProtocolFactory(ProtocolFactory):
-    def __init__(self, loop, dispatch):
+    def __init__(self, loop, dispatch=Dispatch()):
         ProtocolFactory.__init__(self, loop)
         self.dispatch = dispatch
+        self.protocol = None
         self.protocols = []
 
     def proxy(self, conn_number):
@@ -253,7 +273,7 @@ class RPCProtocolFactory(ProtocolFactory):
         return self.protocols[conn_number].proxy()
 
     def build(self):
-        p = self.protocol(self.loop, self.dispatch, self.factory)
+        p = self.protocol(self.loop, self, self.dispatch)
         self.protocols.append(p)
         return p
 

@@ -20,13 +20,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import struct
 from .protocol import Protocol
 
 class LengthProtocol(Protocol):
     """Length protocol is a network encoded length number prefixed message."""
 
     def __init__(self, loop):
-        whizzer.Protocol.__init__(self, loop)
+        Protocol.__init__(self, loop)
         self._buffer = bytearray()
         self._lstr = '!I'
         self._lsize = struct.calcsize(self._lstr)
@@ -74,7 +75,7 @@ class LengthProtocol(Protocol):
         message -- bytes like object
 
         """
-        l = len(msg)
+        l = len(message)
         self.transport.write(struct.pack(self._lstr, l))
-        self.transport.write(msg)
+        self.transport.write(message)
 
