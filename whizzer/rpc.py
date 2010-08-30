@@ -13,19 +13,18 @@ class Dispatch(object):
         """Instantiate a basic dispatcher."""
         self.methods = dict()
 
-    def call(self, method, *args, **kwargs):
-        """Call a method given some args and kwargs.
+    def call(self, method, args):
+        """Call a method given some args.
 
         method -- string containing the method name to call
-        args -- arguments
-        kwargs -- key word arguments
+        args -- arguments, either a list or tuple
 
         returns the result of the method.
 
         May raise an exception if the method isn't in the dict.
 
         """
-        return self.methods[method](*args, **kwargs)
+        return self.methods[method](*args)
     
     def add(self, fn, name=None):
         """Add a method that the dispatcher will know about.
@@ -76,7 +75,7 @@ class Proxy(object):
     def set_timeout(self, timeout):
         """Set a timeout for all synchronous calls, by default there is none."""
     
-    def call(self, timeout, method, *args, **kwargs):
+    def call(self, timeout, method, *args):
         """Perform a synchronous remote call where the returned value is given immediately.
 
         This may block for sometime in certain situations. If it takes more than the Proxies
@@ -84,11 +83,11 @@ class Proxy(object):
 
         Any exceptions the remote call raised that can be sent over the wire are raised.
 
-        Internally this calls begin_call(method, *args, **kwargs).result(timeout=self.timeout)
+        Internally this calls begin_call(method, *args).result(timeout=self.timeout)
 
         """
 
-    def notify(self, method, *args, **kwargs):
+    def notify(self, method, *args):
         """Perform a synchronous remote call where value no return value is desired.
 
         While faster than call it still blocks until the remote callback has been sent.
@@ -98,7 +97,7 @@ class Proxy(object):
 
         """
 
-    def begin_call(self, method, *args, **kwargs):
+    def begin_call(self, method, *args):
         """Perform an asynchronous remote call where the return value is not known yet.
 
         This returns immediately with a Future object. The future object may then be
@@ -106,7 +105,7 @@ class Proxy(object):
 
         """
 
-    def begin_notify(self, method, *args, **kwargs):
+    def begin_notify(self, method, *args):
         """Perform an asynchronous remote call where no return value is expected.
 
         This returns immediately with a Future object. The future object may then be
@@ -128,7 +127,7 @@ class MarshalRPCProxy(Proxy):
     def set_timeout(self, timeout):
         self.timeout = timeout
 
-    def call(self, method, *args, **kwargs):
+    def call(self, method, *args):
         """Perform a synchronous remote call where the returned value is given immediately.
 
         This may block for sometime in certain situations. If it takes more than the Proxies
@@ -136,12 +135,12 @@ class MarshalRPCProxy(Proxy):
 
         Any exceptions the remote call raised that can be sent over the wire are raised.
 
-        Internally this calls begin_call(method, *args, **kwargs).result(timeout=self.timeout)
+        Internally this calls begin_call(method, *args).result(timeout=self.timeout)
 
         """
-        return self.begin_call(method, *args, **kwargs).result(self.timeout)
+        return self.begin_call(method, *args).result(self.timeout)
 
-    def notify(self, method, *args, **kwargs):
+    def notify(self, method, *args):
         """Perform a synchronous remote call where value no return value is desired.
 
         While faster than call it still blocks until the remote callback has been sent.
@@ -150,9 +149,9 @@ class MarshalRPCProxy(Proxy):
         set timeout then a TimeoutError is raised.
 
         """
-        return self.begin_notify(method, *args, **kwargs).result(self.timeout)
+        return self.begin_notify(method, *args).result(self.timeout)
 
-    def begin_call(self, method, *args, **kwargs):
+    def begin_call(self, method, *args):
         """Perform an asynchronous remote call where the return value is not known yet.
 
         This returns immediately with a Future object. The future object may then be
@@ -163,11 +162,11 @@ class MarshalRPCProxy(Proxy):
         f.request = self.request_num
         self.request_num += 1
         self.requests[f.request] = f
-        msg = marshal.dumps((False, f.request, method, args, kwargs))
+        msg = marshal.dumps((False, f.request, method, args))
         self.protocol.send(msg)
         return f
 
-    def begin_notify(self, method, *args, **kwargs):
+    def begin_notify(self, method, *args):
         """Perform an asynchronous remote call where no return value is expected.
 
         This returns immediately with a Future object. The future object may then be
@@ -179,7 +178,7 @@ class MarshalRPCProxy(Proxy):
         f = Future(self.loop)
         f.request = self.request_num
         self.request_num += 1
-        msg = marshal.dumps((False, None, method, args, kwargs))
+        msg = marshal.dumps((False, None, method, args))
         self.protocol.send(msg)
         f.set_result(None)
         return f
@@ -214,12 +213,12 @@ class MarshalRPCProtocol(MarshalLengthProtocol):
         if msg[0]: # result flag set to be true
             self._proxy.results(msg) 
         else:
-            resultflag, request, method, args, kwargs = msg 
+            resultflag, request, method, args = msg 
 
             result = None
             iserror = False
             try:
-                result = self.dispatch.call(method, *args, **kwargs)
+                result = self.dispatch.call(method, args)
             except RPCError as e:
                 iserror = True
                 result = e

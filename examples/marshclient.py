@@ -49,4 +49,4 @@ if __name__ == "__main__":
     print f4.result()
 
     while True:
-        proxy.notify("add", 5, 6)
+        proxy.call("add", 5, 6)
