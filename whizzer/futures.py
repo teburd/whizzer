@@ -242,9 +242,7 @@ class Future(object):
         if not self._done: 
             self._wait = True
     
-            print timeout
             if timeout and timeout > 0.0: 
-                print "setting up a timeout"
                 self._timer = pyev.Timer(timeout, 0.0, self._loop, self._clear_wait, None)
                 self._timer.start()
 

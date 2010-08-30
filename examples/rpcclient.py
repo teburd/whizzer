@@ -47,3 +47,6 @@ if __name__ == "__main__":
     print f1.result()
 
     print f4.result()
+
+    while True:
+        proxy.notify("add", 5, 6)

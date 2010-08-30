@@ -21,7 +21,68 @@
 # THE SOFTWARE.
 
 import struct
+import marshal
+import cStringIO
 from .protocol import Protocol
+
+
+class MarshalLengthProtocol(Protocol):
+    """Length protocol is a network encoded length number prefixed message."""
+
+    def __init__(self, loop):
+        Protocol.__init__(self, loop)
+        self._buffer = bytearray()
+        self._process = self._process_length
+        self._lsize = 5
+   
+    def data(self, data):
+        """Handle incoming data by buffering and then determining length
+        then buffering the message.
+
+        """
+        self._buffer.extend(data)
+        self._process()
+
+    def _process_length(self):
+        """Buffer until the number of bytes needed to decode to an interger
+        length are available.
+        
+        """
+        if len(self._buffer) >= self._lsize:
+            self._l = marshal.loads(str(self._buffer[:self._lsize]))
+            self._buffer = self._buffer[self._lsize:]
+            self._process = self._process_message
+            self._process()
+
+    def _process_message(self):
+        """Buffer until the buffer is the length of the message or greater."""
+        if len(self._buffer) >= self._l:
+            self.message(bytes(self._buffer[:self._l]))
+            self._buffer = self._buffer[self._l:]
+            self._process = self._process_length
+            self._process()
+ 
+    def message(self, message):
+        """Receive a message.
+      
+        message -- bytes like object
+        
+        """
+        pass
+            
+       
+    def send(self, message):
+        """Send a message.
+
+        message -- bytes like object
+
+        """
+        if not self.connected:
+            raise ConnectionClosedError()
+        l = len(message)
+        self.transport.write(marshal.dumps(l))
+        self.transport.write(message)
+
 
 class LengthProtocol(Protocol):
     """Length protocol is a network encoded length number prefixed message."""
@@ -75,6 +136,8 @@ class LengthProtocol(Protocol):
         message -- bytes like object
 
         """
+        if not self.connected:
+            raise ConnectionClosedError()
         l = len(message)
         self.transport.write(struct.pack(self._lstr, l))
         self.transport.write(message)

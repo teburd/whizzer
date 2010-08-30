@@ -56,8 +56,9 @@ class SocketConnection(Connection):
         try:
             result = self.sock.send(buf)
         except IOError as e:
-            self._do_error(e)
-            return
+            if e.errno != 11:
+                self._do_error(e)
+                return
         except OSError as e:
             self._do_error(e)
             return

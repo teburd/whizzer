@@ -33,10 +33,7 @@ class ServerConnection(SocketConnection):
         SocketConnection.__init__(self, loop, sock)
         self.server = server
         self.protocol = protocol
-
-    def read(self, data):
-        """Pass along the data from the real connection to the protocol."""
-        self.protocol.data(data)
+        self.read = self.protocol.data
 
     def error(self, error):
         """There as an error, so clear any circular references and

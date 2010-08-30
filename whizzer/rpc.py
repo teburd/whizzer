@@ -1,5 +1,5 @@
 import marshal
-from .protocols import LengthProtocol
+from .protocols import LengthProtocol, MarshalLengthProtocol
 from .protocol import ProtocolFactory
 from .futures import Future
 
@@ -141,7 +141,7 @@ class MarshalRPCProxy(Proxy):
         """
         return self.begin_call(method, *args, **kwargs).result(self.timeout)
 
-    def notify(self, timeout, method, *args, **kwargs):
+    def notify(self, method, *args, **kwargs):
         """Perform a synchronous remote call where value no return value is desired.
 
         While faster than call it still blocks until the remote callback has been sent.
@@ -150,7 +150,7 @@ class MarshalRPCProxy(Proxy):
         set timeout then a TimeoutError is raised.
 
         """
-        return self.begin_notify(method, *args, **kwargs).result(timeout)
+        return self.begin_notify(method, *args, **kwargs).result(self.timeout)
 
     def begin_call(self, method, *args, **kwargs):
         """Perform an asynchronous remote call where the return value is not known yet.
@@ -194,9 +194,9 @@ class MarshalRPCProxy(Proxy):
         del self.requests[request]
 
 
-class MarshalRPCProtocol(LengthProtocol):
+class MarshalRPCProtocol(MarshalLengthProtocol):
     def __init__(self, loop, factory, dispatch=Dispatch()):
-        LengthProtocol.__init__(self, loop)
+        MarshalLengthProtocol.__init__(self, loop)
         self.factory = factory
         self.dispatch = dispatch
         self._proxy = None
@@ -223,12 +223,13 @@ class MarshalRPCProtocol(LengthProtocol):
             except RPCError as e:
                 iserror = True
                 result = e
-
-            if isinstance(result, Future):
-                result.request = request
-                result.add_done_callback(self._result_done)
-            else:
-                self._send_results(request, iserror, result)
+            
+            if request is not None:
+                if isinstance(result, Future):
+                    result.request = request
+                    result.add_done_callback(self._result_done)
+                else:
+                    self._send_results(request, iserror, result)
 
     def _result_done(self, future):
         """This is set as the done callback of a dispatched call that returns a future."""
@@ -256,6 +257,7 @@ class MarshalRPCProtocol(LengthProtocol):
 
     def connection_lost(self, reason=None):
         """Tell the factory we lost our connection."""
+        print "lost connection, " + str(reason)
         self.factory.lost_connection(self)
         self.factory = None
 
@@ -277,6 +279,7 @@ class RPCProtocolFactory(ProtocolFactory):
 
     def lost_connection(self, p):
         """Called by the rpc protocol whenever it loses a connection."""
+        print "protocol lost connection"
         self.protocols.remove(p)
 
 class JSONRPCProtocol(object):

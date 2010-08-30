@@ -23,6 +23,8 @@ import sys
 import pyev
 import timeit
 
+
+
 sys.path.insert(0, '..')
 import whizzer
 from whizzer import rpc
@@ -35,12 +37,10 @@ if __name__ == "__main__":
     client = whizzer.UnixClient(loop, factory, "marshal_adder")
     client.connect()
     proxy = factory.proxy(0).result()
-    proxy.set_timeout(2.0)
+    proxy.set_timeout(5.0)
     t = timeit.Timer('proxy.call("add", 2, 3)', 'from __main__ import proxy')
-    t = t.timeit(10000)
-    print "Calls per second: %f" % (10000.0/t)
+    r = t.timeit(10000)
+    print "Calls per second: %f" % (10000.0/r)
     t = timeit.Timer('proxy.notify("add", 2, 3)', 'from __main__ import proxy')
     t = t.timeit(10000)
     print "Notifies per second: %f" %(10000.0/t)
-    
-
