@@ -84,9 +84,6 @@ class SocketConnection(Connection):
             self.write_buffer.extend(buf)
     
     def _do_write(self, watcher, events):
-        if self.closed:
-            return
-       
         try:
             sent = self.sock.send(bytes(buf))
             self.write_buffer = self.write_buffer[written:]
@@ -99,8 +96,6 @@ class SocketConnection(Connection):
             self._do_error(e)
 
     def _do_read(self, watcher, events):
-        if self.closed:
-            return
         try:
             data = self.sock.recv(4096)
             if len(data) == 0:
@@ -115,6 +110,9 @@ class SocketConnection(Connection):
         self.error(e)
         self._do_close()
 
+    def _do_nothing(self, watcher, events):
+        pass
+
     def close(self):
         self._do_close()
 
@@ -125,5 +123,7 @@ class SocketConnection(Connection):
             self.read_watcher.stop()
             self.sock.close()
             self.sock = None
+            self._do_read = self._do_nothing
+            self._do_write = self._do_nothing
 
 
