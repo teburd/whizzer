@@ -1,4 +1,5 @@
 import marshal
+import msgpack
 from .protocols import NetstringProtocol, MarshalLengthProtocol
 from .protocol import Protocol, ProtocolFactory
 from .futures import Future
@@ -323,7 +324,7 @@ class MsgPackProxy(Proxy):
         f = Future(self.loop)
         f.request = self.request_num
         self.request_num += 1
-        msg = msgpack.packb([2, method, args))
+        msg = msgpack.packb([2, method, args])
         self.protocol.send(msg)
         f.set_result(None)
         return f
@@ -360,7 +361,20 @@ class MsgPackProtocol(Protocol):
     def request(self, request):
         """Handle an incoming call request."""
         msgtype, msgid, method, params = *request
+      
+        result = None
+        error = None
 
+        try:
+            result = self.dispatch.call(method, params)
+        except Exception as e:
+            error = "Exception"
+
+        if isinstance(result, Future):
+            result.msgid = msgid
+            result.add_done_callback(self._result_done)
+        else:
+            self._send_result(msgid, error, result)
 
     def data(self, data):
         """Use msgpack's streaming feed feature to build up a set of lists.
@@ -375,18 +389,15 @@ class MsgPackProtocol(Protocol):
             self.handlers[msg[0]](msg)
 
     def _result_done(self, future):
-        """This is set as the done callback of a dispatched call that returns a future."""
-        if future.exception():
-            self._send_results(future.request, True, future.exception())
-        else:
-            self._send_results(future.request, False, future.result())
+        if not future.cancelled():
+            if future.exception():
+                self._send_results(future.msgid, future.exception(), None)
+            else:
+                self._send_results(future.msgid, None, future.result())
 
-    def _send_results(self, request, iserror, results):
-        if iserror:
-            results = marshal.dumps((True, request, results, None))
-        else:
-            results = marshal.dumps((True, request, None, results))
-        self.send(results)
+    def _send_result(self, msgid, error, result):
+        msg = msgpack.packb([1, msgid, error, result])
+        self.transport.write(results)
 
     def proxy(self):
         """Return a Future that will result in a proxy object in the future."""
