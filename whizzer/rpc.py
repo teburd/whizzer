@@ -164,6 +164,7 @@ class MarshalRPCProxy(Proxy):
         f.request = self.request_num
         self.request_num += 1
         self.requests[f.request] = f
+        print "sending " + str(args)
         msg = marshal.dumps((False, f.request, method, args, kwargs))
         self.protocol.send(msg)
         return f

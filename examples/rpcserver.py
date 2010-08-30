@@ -8,6 +8,8 @@ import pyev
 class MyObject(object):
     @rpc.remote
     def add(self, a, b):
+        print type(a)
+        print type(b)
         return a+b
 
 if __name__ == "__main__":
