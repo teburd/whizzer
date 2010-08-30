@@ -228,8 +228,8 @@ class MarshalRPCProtocol(LengthProtocol):
                 result = e
 
             if isinstance(result, Future):
-                future.request = request
-                future.add_done_callback(self._result.done)
+                result.request = request
+                result.add_done_callback(self._result_done)
             else:
                 self._send_results(request, iserror, result)
 
