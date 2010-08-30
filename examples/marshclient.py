@@ -45,8 +45,11 @@ if __name__ == "__main__":
     print f3.result()
     print f2.result()
     print f1.result()
-
     print f4.result()
 
-    while True:
-        proxy.call("add", 5, 6)
+    t = timeit.Timer('proxy.call("add", 2, 3)', 'from __main__ import proxy')
+    r = t.timeit(10000)
+    print "Calls per second: %f" % (10000.0/r)
+    t = timeit.Timer('proxy.notify("add", 2, 3)', 'from __main__ import proxy')
+    t = t.timeit(10000)
+    print "Notifies per second: %f" %(10000.0/t)
