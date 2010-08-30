@@ -83,5 +83,69 @@ class TestDispatch(unittest.TestCase):
         self.assertEqual(a.call(self.makedict.__name__, **kwargs), kwargs)
         self.assertEqual(self.count, 1)
 
+
+class DummyService(object):
+    """A useful dummy service for testing rpc with."""
+    def __init__(self):
+        self.calls = 0
+
+    @rpc.remote
+    def nothing(self):
+        self.calls += 1
+
+    @rpc.remote
+    def simple(self, a, b):
+        self.calls += 1
+        return a+b
+
+    @rpc.remote
+    def futured(self, a, b):
+        self.calls += 1
+        f = futures.Future()
+        f.set_result(True)
+        return f
+
+    @rpc.remote 
+    def exception(self):
+        raise Exception()
+
+    @rpc.remote
+    def remote_exception(self):
+        raise rpc.RemoteException()
+
+class TestMarshalRPC(unittest.TestCase):
+    """A functional test against an rpc service implementing the proxy interface."""
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def runTest(self):
+        unittest.TestCase.runTest(self)
+
+    def test_call(self):
+        self.assertTrue(self.proxy.call('nothing'))
+
+    def test_unknown_call(self):
+        self.assertRaises(rpc.UnknownMethodError, self.proxy.call, 'bad_method')
+
+    def test_exceptioned_call(self):
+        pass
+
+    def test_notify(self):
+        pass
+
+    def test_unknown_notify(self):
+        pass
+
+    def test_exceptioned_notify(self):
+        pass
+
+
+#rpcsuite = unittest.TestSuite()
+#rpcsuite.addTest(TestRPC(rpc.MarshalRPCProtocol))
+
 if __name__ == '__main__':
     unittest.main()
