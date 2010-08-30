@@ -25,7 +25,6 @@ class Dispatch(object):
         May raise an exception if the method isn't in the dict.
 
         """
-        print(method + str(args)+str(kwargs))
         return self.methods[method](*args, **kwargs)
     
     def add(self, fn, name=None):
@@ -164,7 +163,6 @@ class MarshalRPCProxy(Proxy):
         f.request = self.request_num
         self.request_num += 1
         self.requests[f.request] = f
-        print "sending " + str(args)
         msg = marshal.dumps((False, f.request, method, args, kwargs))
         self.protocol.send(msg)
         return f
@@ -181,7 +179,7 @@ class MarshalRPCProxy(Proxy):
         f = Future(self.loop)
         f.request = self.request_num
         self.request_num += 1
-        msg = marshal.dumps((False, f.request, method, args, kwargs))
+        msg = marshal.dumps((False, None, method, args, kwargs))
         self.protocol.send(msg)
         f.set_result(None)
         return f
@@ -213,7 +211,6 @@ class MarshalRPCProtocol(LengthProtocol):
     def message(self, message):
         """Handle an incoming message (remote call request)."""
         msg = marshal.loads(message)
-        print msg
         if msg[0]: # result flag set to be true
             self._proxy.results(msg) 
         else:

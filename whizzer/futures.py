@@ -128,7 +128,6 @@ class Future(object):
 
     def _interrupt(self, watcher, events):
         """A signal may be caught while waiting for something, if so, its assumed the future is cancelled."""
-        print "got interrupt, cancelling"
         if not self._done and self._wait:
             self._cancelled = True
             self._wait = False
@@ -226,7 +225,6 @@ class Future(object):
             callback(self)
    
     def _clear_wait(self, watcher, events):
-        print "got timeout"
         self._wait = False
 
     def _do_wait(self, timeout):
