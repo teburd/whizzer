@@ -188,11 +188,11 @@ class MarshalRPCProxy(Proxy):
 
     def results(self, msg):
         """Handle a results message given to the proxy by the protocol object."""
-        isresult, iserror, request, result = msg
+        isresult,  request, iserror, result = msg
         if not iserror:
             self.requests[request].set_result(result)
         else:
-            self.requests[request].set_exception(RPCException(result))
+            self.requests[request].set_exception(RPCError())
         del self.requests[request]
 
 
@@ -222,7 +222,7 @@ class MarshalRPCProtocol(LengthProtocol):
             result = None
             iserror = False
             try:
-                result = self.dispatch.call(method, args, kwargs)
+                result = self.dispatch.call(method, *args, **kwargs)
             except RPCError as e:
                 iserror = True
                 result = e
@@ -242,9 +242,9 @@ class MarshalRPCProtocol(LengthProtocol):
 
     def _send_results(self, request, iserror, results):
         if iserror:
-            results = marshal.dumps(True, request, results, None)
+            results = marshal.dumps((True, request, results, None))
         else:
-            results = marshal.dumps(True, request, None, results)
+            results = marshal.dumps((True, request, None, results))
         self.send(results)
 
     def proxy(self):
