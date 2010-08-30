@@ -1,6 +1,6 @@
 import marshal
 import msgpack
-from .protocols import NetstringProtocol, MarshalLengthProtocol
+from .protocols import  MarshalLengthProtocol
 from .protocol import Protocol, ProtocolFactory
 from .futures import Future
 
@@ -308,8 +308,7 @@ class MsgPackProxy(Proxy):
         f.request = self.request_num
         self.request_num += 1
         self.requests[f.request] = f
-        msg = msgpack.packb([0, f.request, method, args])
-        self.protocol.send(msg)
+        self.protocol.send_request(f.request, method, args)
         return f
 
     def begin_notify(self, method, *args):
@@ -324,8 +323,7 @@ class MsgPackProxy(Proxy):
         f = Future(self.loop)
         f.request = self.request_num
         self.request_num += 1
-        msg = msgpack.packb([2, method, args])
-        self.protocol.send(msg)
+        self.protocol.send_notification(method, args)
         f.set_result(None)
         return f
 
@@ -334,16 +332,18 @@ class MsgPackProxy(Proxy):
         if error:
             self.requests[msgid].set_exception(error)
         else:
-            self.requests[msgid].set_exception(result)
-        del self.requests[request]
+            self.requests[msgid].set_result(result)
+        del self.requests[msgid]
 
 class MsgPackProtocol(Protocol):
     def __init__(self, loop, factory, dispatch=Dispatch()):
-        MarshalLengthProtocol.__init__(self, loop)
+        Protocol.__init__(self, loop)
         self.factory = factory
         self.dispatch = dispatch
         self._proxy = None
         self._proxy_futures = []
+        self.handlers = {0:self.request, 1:self.response, 2:self.notify}
+        self.unpacker = msgpack.Unpacker()
 
     def connection_made(self):
         """When a connection is made the proxy is available."""
@@ -351,30 +351,29 @@ class MsgPackProtocol(Protocol):
         for f in self._proxy_futures:
             f.set_result(self._proxy)
 
+    def response(self, msgtype, msgid, error, result):
+        self._proxy.response(msgid, error, result)
 
-    def response(self, response):
-        self._proxy.response(
+    def notify(self, msgtype, method, params):
+        """Handle an incoming notify request."""
+        self.dispatch.call(method, params)
 
-    def notify(self, notify):
-        msgtype, method, params = *notify
-
-    def request(self, request):
+    def request(self, msgtype, msgid, method, params):
         """Handle an incoming call request."""
-        msgtype, msgid, method, params = *request
-      
         result = None
         error = None
 
         try:
             result = self.dispatch.call(method, params)
         except Exception as e:
+            print "Got Exception " + str(e)
             error = "Exception"
 
         if isinstance(result, Future):
             result.msgid = msgid
             result.add_done_callback(self._result_done)
         else:
-            self._send_result(msgid, error, result)
+            self.send_response(msgid, error, result)
 
     def data(self, data):
         """Use msgpack's streaming feed feature to build up a set of lists.
@@ -385,19 +384,27 @@ class MsgPackProtocol(Protocol):
 
         """
         self.unpacker.feed(data)
-        for msg in unpacker:
-            self.handlers[msg[0]](msg)
+        for msg in self.unpacker:
+            self.handlers[msg[0]](*msg)
 
     def _result_done(self, future):
         if not future.cancelled():
             if future.exception():
-                self._send_results(future.msgid, future.exception(), None)
+                self.send_response(future.msgid, future.exception(), None)
             else:
-                self._send_results(future.msgid, None, future.result())
+                self.send_response(future.msgid, None, future.result())
 
-    def _send_result(self, msgid, error, result):
+    def send_request(self, msgid, method, params):
+        msg = msgpack.packb([0, msgid, method, params])
+        self.transport.write(msg)
+  
+    def send_response(self, msgid, error, result):
         msg = msgpack.packb([1, msgid, error, result])
-        self.transport.write(results)
+        self.transport.write(msg)
+
+    def send_notification(self, method, params):
+        msg = msgpack.packb([2, method, params])
+        self.transport.write(msg)
 
     def proxy(self):
         """Return a Future that will result in a proxy object in the future."""
