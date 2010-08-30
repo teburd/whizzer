@@ -223,6 +223,7 @@ class Future(object):
     def _perform_callbacks(self):
         for callback in self._done_callbacks:
             callback(self)
+        self._done_callbacks = [] # clear the references
    
     def _clear_wait(self, watcher, events):
         self._wait = False

@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 import sys
-import timeit
+import time
 import pyev
 
 sys.path.insert(0, '..')
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     factory = rpc.RPCProtocolFactory(loop)
     factory.protocol = rpc.MsgPackProtocol
     sighandler = whizzer.SignalHandler(loop)
-    client = whizzer.UnixClient(loop, factory, "marshal_adder")
+    client = whizzer.UnixClient(loop, factory, "msgpack_adder")
     client.connect()
     proxy = factory.proxy(0).result()
     print proxy.call("add", 2, 3)
@@ -47,10 +47,18 @@ if __name__ == "__main__":
     print f2.result()
     print f1.result()
     print f4.result()
+   
+    before = time.time()
+    for x in xrange(0, 10000):
+        proxy.notify("add", 2, 3)
+    proxy.call("add", 2, 3)
+    ntime = time.time() - before
+   
+    before = time.time()
+    for x in xrange(0, 10000):
+        proxy.call("add", 2, 3)
+    ctime = time.time() - before
 
-    t = timeit.Timer('proxy.call("add", 2, 3)', 'from __main__ import proxy')
-    r = t.timeit(10000)
-    print "Calls per second: %f" % (10000.0/r)
-    t = timeit.Timer('proxy.notify("add", 2, 3)', 'from __main__ import proxy')
-    t = t.timeit(10000)
-    print "Notifies per second: %f" %(10000.0/t)
+    print "Notifies per second: %f" %(10000.0/ntime)
+    print "Calls per second: %f" % (10000.0/ctime)
+    

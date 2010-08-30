@@ -27,7 +27,7 @@ class MyObject(object):
     @rpc.remote
     def add(self, a, b):
         self.calls += 1
-        return a
+        return a + b
 
     @rpc.remote
     def delayed_add(self, delay, a, b):
@@ -39,6 +39,6 @@ if __name__ == "__main__":
     sighandler = whizzer.SignalHandler(loop)
     factory = rpc.RPCProtocolFactory(loop, rpc.ObjectDispatch(MyObject(loop)))
     factory.protocol = rpc.MsgPackProtocol
-    server = whizzer.UnixServer(loop, factory, "marshal_adder")
+    server = whizzer.UnixServer(loop, factory, "msgpack_adder")
     sighandler.register_server(server)
     loop.loop()

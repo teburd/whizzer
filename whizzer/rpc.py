@@ -295,7 +295,7 @@ class MsgPackProxy(Proxy):
         set timeout then a TimeoutError is raised.
 
         """
-        return self.begin_notify(method, *args).result(self.timeout)
+        self.protocol.send_notification(method, args)
 
     def begin_call(self, method, *args):
         """Perform an asynchronous remote call where the return value is not known yet.
@@ -309,22 +309,6 @@ class MsgPackProxy(Proxy):
         self.request_num += 1
         self.requests[f.request] = f
         self.protocol.send_request(f.request, method, args)
-        return f
-
-    def begin_notify(self, method, *args):
-        """Perform an asynchronous remote call where no return value is expected.
-
-        This returns immediately with a Future object. The future object may then be
-        used to attach a callback, force waiting for the call, or check for exceptions.
-
-        The Future object's result is set to None when the notify message has been sent.
-
-        """
-        f = Future(self.loop)
-        f.request = self.request_num
-        self.request_num += 1
-        self.protocol.send_notification(method, args)
-        f.set_result(None)
         return f
 
     def response(self, msgid, error, result):
