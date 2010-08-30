@@ -1,6 +1,6 @@
 import marshal
-from .protocols import LengthProtocol, MarshalLengthProtocol
-from .protocol import ProtocolFactory
+from .protocols import NetstringProtocol, MarshalLengthProtocol
+from .protocol import Protocol, ProtocolFactory
 from .futures import Future
 
 class RPCError(Exception):
@@ -259,6 +259,151 @@ class MarshalRPCProtocol(MarshalLengthProtocol):
         print "lost connection, " + str(reason)
         self.factory.lost_connection(self)
         self.factory = None
+
+class MsgPackProxy(Proxy):
+    def __init__(self, loop, protocol):
+        self.loop = loop
+        self.protocol = protocol
+        self.calls = set()
+        self.request_num = 0
+        self.requests = dict()
+        self.timeout = None
+
+    def set_timeout(self, timeout):
+        self.timeout = timeout
+
+    def call(self, method, *args):
+        """Perform a synchronous remote call where the returned value is given immediately.
+
+        This may block for sometime in certain situations. If it takes more than the Proxies
+        set timeout then a TimeoutError is raised.
+
+        Any exceptions the remote call raised that can be sent over the wire are raised.
+
+        Internally this calls begin_call(method, *args).result(timeout=self.timeout)
+
+        """
+        return self.begin_call(method, *args).result(self.timeout)
+
+    def notify(self, method, *args):
+        """Perform a synchronous remote call where value no return value is desired.
+
+        While faster than call it still blocks until the remote callback has been sent.
+
+        This may block for sometime in certain situations. If it takes more than the Proxies
+        set timeout then a TimeoutError is raised.
+
+        """
+        return self.begin_notify(method, *args).result(self.timeout)
+
+    def begin_call(self, method, *args):
+        """Perform an asynchronous remote call where the return value is not known yet.
+
+        This returns immediately with a Future object. The future object may then be
+        used to attach a callback, force waiting for the call, or check for exceptions.
+
+        """
+        f = Future(self.loop)
+        f.request = self.request_num
+        self.request_num += 1
+        self.requests[f.request] = f
+        msg = msgpack.packb([0, f.request, method, args])
+        self.protocol.send(msg)
+        return f
+
+    def begin_notify(self, method, *args):
+        """Perform an asynchronous remote call where no return value is expected.
+
+        This returns immediately with a Future object. The future object may then be
+        used to attach a callback, force waiting for the call, or check for exceptions.
+
+        The Future object's result is set to None when the notify message has been sent.
+
+        """
+        f = Future(self.loop)
+        f.request = self.request_num
+        self.request_num += 1
+        msg = msgpack.packb([2, method, args))
+        self.protocol.send(msg)
+        f.set_result(None)
+        return f
+
+    def response(self, msgid, error, result):
+        """Handle a results message given to the proxy by the protocol object."""
+        if error:
+            self.requests[msgid].set_exception(error)
+        else:
+            self.requests[msgid].set_exception(result)
+        del self.requests[request]
+
+class MsgPackProtocol(Protocol):
+    def __init__(self, loop, factory, dispatch=Dispatch()):
+        MarshalLengthProtocol.__init__(self, loop)
+        self.factory = factory
+        self.dispatch = dispatch
+        self._proxy = None
+        self._proxy_futures = []
+
+    def connection_made(self):
+        """When a connection is made the proxy is available."""
+        self._proxy = MsgPackProxy(self.loop, self)
+        for f in self._proxy_futures:
+            f.set_result(self._proxy)
+
+
+    def response(self, response):
+        self._proxy.response(
+
+    def notify(self, notify):
+        msgtype, method, params = *notify
+
+    def request(self, request):
+        """Handle an incoming call request."""
+        msgtype, msgid, method, params = *request
+
+
+    def data(self, data):
+        """Use msgpack's streaming feed feature to build up a set of lists.
+        
+        The lists should then contain the messagepack-rpc specified items.
+
+        This should be outrageously fast.
+
+        """
+        self.unpacker.feed(data)
+        for msg in unpacker:
+            self.handlers[msg[0]](msg)
+
+    def _result_done(self, future):
+        """This is set as the done callback of a dispatched call that returns a future."""
+        if future.exception():
+            self._send_results(future.request, True, future.exception())
+        else:
+            self._send_results(future.request, False, future.result())
+
+    def _send_results(self, request, iserror, results):
+        if iserror:
+            results = marshal.dumps((True, request, results, None))
+        else:
+            results = marshal.dumps((True, request, None, results))
+        self.send(results)
+
+    def proxy(self):
+        """Return a Future that will result in a proxy object in the future."""
+        f = Future(self.loop)
+        self._proxy_futures.append(f)
+
+        if self._proxy:
+            f.set_result(self._proxy)
+
+        return f
+
+    def connection_lost(self, reason=None):
+        """Tell the factory we lost our connection."""
+        print "lost connection, " + str(reason)
+        self.factory.lost_connection(self)
+        self.factory = None
+
 
 class RPCProtocolFactory(ProtocolFactory):
     def __init__(self, loop, dispatch=Dispatch()):
