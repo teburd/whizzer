@@ -65,7 +65,13 @@ class SocketServer(SocketConnection):
         SocketConnection.__init__(self, loop, sock)
         self.factory = factory
         self.connections = set()
+        self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop, self._interrupt)
+        self.sigint_watcher.start()
         self.closing = False
+
+    def _interrupt(self, watcher, events):
+        """Handle sigint."""
+        self.close()
 
     def _do_read(self, watcher, events):
         """Overload the do_read method because recv 
