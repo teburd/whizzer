@@ -279,7 +279,6 @@ class MsgPackProtocol(Protocol):
 
     def connection_lost(self, reason=None):
         """Tell the factory we lost our connection."""
-        print "lost connection, " + str(reason)
         self.factory.lost_connection(self)
         self.factory = None
 
@@ -302,7 +301,6 @@ class RPCProtocolFactory(ProtocolFactory):
 
     def lost_connection(self, p):
         """Called by the rpc protocol whenever it loses a connection."""
-        print "protocol lost connection"
         self.protocols.remove(p)
 
 class JSONRPCProtocol(object):

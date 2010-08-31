@@ -3,6 +3,7 @@ sys.path.insert(0, '..')
 
 import whizzer
 from whizzer import rpc
+from whizzer import debug
 import pyev
 import time
 import cProfile
@@ -36,7 +37,7 @@ class MyObject(object):
 if __name__ == "__main__":
     loop = pyev.default_loop()
     sighand = whizzer.SignalHandler(loop)
-    objwatch = whizzer.cleanup.ObjectWatcher(loop, [rpc.MsgPackProtocol])
+    objwatch = debug.ObjectWatcher(loop, [rpc.MsgPackProtocol])
     factory = rpc.RPCProtocolFactory(loop, rpc.ObjectDispatch(MyObject(loop)))
     factory.protocol = rpc.MsgPackProtocol
     server = whizzer.UnixServer(loop, factory, "msgpack_adder")

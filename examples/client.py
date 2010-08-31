@@ -26,6 +26,7 @@ import pyev
 
 sys.path.insert(0, '..')
 import whizzer
+from whizzer import debug
 
 class EchoClientProtocol(whizzer.Protocol):
     def connection_made(self):
@@ -33,11 +34,8 @@ class EchoClientProtocol(whizzer.Protocol):
         self.transport.write(b'Echo Me')
         
     def data(self, data):
-        print("echo'd " + data)
+        #print("echo'd " + data)
         self.lose_connection()
-
-    def connection_lost(self, reason=None):
-        print("lost connection")
 
 class ClientManager(object):
     def __init__(self, loop, factory):
@@ -45,15 +43,14 @@ class ClientManager(object):
         self.factory = factory
         self.timer = pyev.Timer(1.0, 0.001, loop, self.connect, factory)
         self.timer.start()
-        self.clients = set()
 
     def connect(self, watcher, events):
         client = whizzer.TcpClient(self.loop, self.factory, "127.0.0.1", 2000)
         client.connect()
-        self.clients.add(client)
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
+    objwatcher = debug.ObjectWatcher(loop, [whizzer.TcpClient])
     factory = whizzer.ProtocolFactory(loop)
     factory.protocol = EchoClientProtocol
     sighandler = whizzer.SignalHandler(loop)

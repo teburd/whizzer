@@ -105,15 +105,18 @@ class SocketClient(object):
         This gets called when you call close.
         
         """
-        pass
+        self.connection.client = None
+        self.connection = None
 
     def close(self):
         """Close the client connection."""
         if self.connect_watcher:
             self.connect_watcher.stop()
             self.connect_watcher = None
-        self.connection.close()
-        self.connection = None
+        if self.connection:
+            self.connection.close()
+            self.connection.client = None
+            self.connection = None
 
 class UnixClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""

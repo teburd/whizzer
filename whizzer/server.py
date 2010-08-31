@@ -116,7 +116,6 @@ class SocketServer(SocketConnection):
 
     def connection_error(self, connection, error):
         """Handle an error on one of the client connections gracefully."""
-        print("losing connection")
         connection.server = None
         self.connections.remove(connection)
 
