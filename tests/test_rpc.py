@@ -72,55 +72,102 @@ class TestDispatch(unittest.TestCase):
         self.assertEqual(a.call(self.add.__name__, (1, 2)), 3)
         self.assertEqual(self.count, 1)
 
-class DummyService(object):
-    """A useful dummy service for testing rpc with."""
+
+class MockService(object):
     def __init__(self):
-        self.calls = 0
+        self.last_called = None
 
     @rpc.remote
-    def nothing(self):
-        self.calls += 1
-
-    @rpc.remote
-    def simple(self, a, b):
-        self.calls += 1
+    def add(self, a, b):
+        self.last_called = self.add
         return a+b
 
     @rpc.remote
-    def futured(self, a, b):
-        self.calls += 1
-        f = futures.Future()
-        f.set_result(True)
-        return f
-
-    @rpc.remote 
     def exception(self):
+        self.last_called = self.exception
         raise Exception()
 
     @rpc.remote
-    def remote_exception(self):
-        raise rpc.RemoteException()
+    def rpc_error(self):
+        self.last_called = self.rpc_error
+        raise rpc.RPCError()
 
-class TestMarshalRPC(unittest.TestCase):
-    """A functional test against an rpc service implementing the proxy interface."""
+    @rpc.remote
+    def tuple_ret(self, a, b, c):
+        self.last_called = self.tuple_ret
+        return (a,b,c) 
 
-    def setUp(self):
+    @rpc.remote
+    def dict_ret(self, a, b, c):
+        self.last_called = self.dict_ret
+        return {'a':a,'b':b,'c':c} 
+
+    @rpc.remote
+    def list_ret(self, a, b, c):
+        self.last_called = self.list_ret
+        return [a,b,c] 
+
+    @rpc.remote
+    def not_set_future_ret(self):
+        self.last_called = self.not_set_future_ret
+        return future.Future()
+
+    @rpc.remote
+    def set_future_ret(self):
+        self.last_called = self.set_future_ret
+        f = future.Future()
+        f.set_result(True)
+        return f
+
+    def local_only(self):
+        self.last_called = self.local_only
         pass
+
+class TestMsgPackProtocol(unittest.TestCase):
+    """A functional test against the msgpack rpc protocol."""
+    def setUp(self):
+        self.factory = rpc.RPCProtocolFactory(loop, rpc.ObjectDispatch(MockService()))
+        self.factory.protocol = rpc.MsgPackProtocol
+        self.protocol = self.factory.build()
 
     def tearDown(self):
-        pass
+        self.factory = None
+        self.protocol = None
 
     def runTest(self):
         unittest.TestCase.runTest(self)
 
-    def test_call(self):
-        self.assertTrue(self.proxy.call('nothing'))
+    def mock_send_response(self, msgid, error, result):
+        """Mock send response to make testing narrowed down and simpler."""
+        self.response = (msgid, error, result)
+    
+    def test_connection_made(self):
+        future_proxy = self.protocol.proxy()
+        self.protocol.connection_made()
+        self.assertIsInstance(future_proxy.result(), rpc.Proxy)
 
-    def test_unknown_call(self):
-        self.assertRaises(rpc.UnknownMethodError, self.proxy.call, 'bad_method')
+    def test_handle_request(self):
+        self.protocol.send_response = self.mock_send_response
+        self.protocol.request(0, 0, "add", (1, 2))
+        self.assertTrue(self.response == (0, None, 3))
 
-    def test_exceptioned_call(self):
-        pass
+    def test_handle_unknown_request(self):
+        self.protocol.send_response = self.mock_send_response
+        self.protocol.request(0, 0, "blah_add", (1, 2))
+        self.assertTrue(self.response == (0, rpc.UnknownMethodError.__name__, None))
+
+    def test_handle_badargs_request(self):
+        self.protocol.send_response = self.mock_send_response
+        self.protocol.request(0, 0, "add", (1, 2, 3))
+        self.assertTrue(self.response == (0, rpc.BadArgumentsError.__name__, None))
+
+    def test_handle_exceptioned_request(self):
+        self.assertRaises(Exception, self.protocol.request, 0, 0, "exception")
+
+    def test_handle_rpcexceptioned_request(self):
+        self.protocol.send_response = self.mock_send_response
+        self.protocol.request(0, 0, "rpc_error")
+        self.assertNotNone(self.response[1])
 
     def test_notify(self):
         pass
@@ -128,8 +175,15 @@ class TestMarshalRPC(unittest.TestCase):
     def test_unknown_notify(self):
         pass
 
+    def test_badargs_notify(self):
+        pass
+
     def test_exceptioned_notify(self):
         pass
+
+    def test_rpcexceptioned_notify(self):
+        pass
+
 
 
 #rpcsuite = unittest.TestSuite()

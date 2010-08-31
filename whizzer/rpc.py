@@ -4,7 +4,15 @@ from .protocols import  MarshalLengthProtocol
 from .protocol import Protocol, ProtocolFactory
 from .futures import Future
 
+
 class RPCError(Exception):
+    def to_tuple(self):
+        return (self.__class__.__name__, self.message)
+
+class UnknownMethodError(RPCError):
+    pass
+
+class BadArgumentsError(RPCError):
     pass
 
 class Dispatch(object):
@@ -73,6 +81,8 @@ class ObjectDispatch(Dispatch):
                 self.add(a, a.remote['name'])
 
 class Proxy(object):
+    """Basic interface definition of what a Proxy object should look like."""
+
     def set_timeout(self, timeout):
         """Set a timeout for all synchronous calls, by default there is none."""
     
@@ -106,171 +116,28 @@ class Proxy(object):
 
         """
 
-    def begin_notify(self, method, *args):
-        """Perform an asynchronous remote call where no return value is expected.
-
-        This returns immediately with a Future object. The future object may then be
-        used to attach a callback, force waiting for the call, or check for exceptions.
-
-        The Future object's result is set to None when the notify message has been sent.
-
-        """
-
-class MarshalRPCProxy(Proxy):
-    def __init__(self, loop, protocol):
-        self.loop = loop
-        self.protocol = protocol
-        self.calls = set()
-        self.request_num = 0
-        self.requests = dict()
-        self.timeout = None
-
-    def set_timeout(self, timeout):
-        self.timeout = timeout
-
-    def call(self, method, *args):
-        """Perform a synchronous remote call where the returned value is given immediately.
-
-        This may block for sometime in certain situations. If it takes more than the Proxies
-        set timeout then a TimeoutError is raised.
-
-        Any exceptions the remote call raised that can be sent over the wire are raised.
-
-        Internally this calls begin_call(method, *args).result(timeout=self.timeout)
-
-        """
-        return self.begin_call(method, *args).result(self.timeout)
-
-    def notify(self, method, *args):
-        """Perform a synchronous remote call where value no return value is desired.
-
-        While faster than call it still blocks until the remote callback has been sent.
-
-        This may block for sometime in certain situations. If it takes more than the Proxies
-        set timeout then a TimeoutError is raised.
-
-        """
-        return self.begin_notify(method, *args).result(self.timeout)
-
-    def begin_call(self, method, *args):
-        """Perform an asynchronous remote call where the return value is not known yet.
-
-        This returns immediately with a Future object. The future object may then be
-        used to attach a callback, force waiting for the call, or check for exceptions.
-
-        """
-        f = Future(self.loop)
-        f.request = self.request_num
-        self.request_num += 1
-        self.requests[f.request] = f
-        msg = marshal.dumps((False, f.request, method, args))
-        self.protocol.send(msg)
-        return f
-
-    def begin_notify(self, method, *args):
-        """Perform an asynchronous remote call where no return value is expected.
-
-        This returns immediately with a Future object. The future object may then be
-        used to attach a callback, force waiting for the call, or check for exceptions.
-
-        The Future object's result is set to None when the notify message has been sent.
-
-        """
-        f = Future(self.loop)
-        f.request = self.request_num
-        self.request_num += 1
-        msg = marshal.dumps((False, None, method, args))
-        self.protocol.send(msg)
-        f.set_result(None)
-        return f
-
-    def results(self, msg):
-        """Handle a results message given to the proxy by the protocol object."""
-        isresult,  request, iserror, result = msg
-        if not iserror:
-            self.requests[request].set_result(result)
-        else:
-            self.requests[request].set_exception(RPCError())
-        del self.requests[request]
-
-
-class MarshalRPCProtocol(MarshalLengthProtocol):
-    def __init__(self, loop, factory, dispatch=Dispatch()):
-        MarshalLengthProtocol.__init__(self, loop)
-        self.factory = factory
-        self.dispatch = dispatch
-        self._proxy = None
-        self._proxy_futures = []
-
-    def connection_made(self):
-        """When a connection is made the proxy is available."""
-        self._proxy = MarshalRPCProxy(self.loop, self)
-        for f in self._proxy_futures:
-            f.set_result(self._proxy)
-
-    def message(self, message):
-        """Handle an incoming message (remote call request)."""
-        msg = marshal.loads(message)
-        if msg[0]: # result flag set to be true
-            self._proxy.results(msg) 
-        else:
-            resultflag, request, method, args = msg 
-
-            result = None
-            iserror = False
-            try:
-                result = self.dispatch.call(method, args)
-            except RPCError as e:
-                iserror = True
-                result = e
-            
-            if request is not None:
-                if isinstance(result, Future):
-                    result.request = request
-                    result.add_done_callback(self._result_done)
-                else:
-                    self._send_results(request, iserror, result)
-
-    def _result_done(self, future):
-        """This is set as the done callback of a dispatched call that returns a future."""
-        if future.exception():
-            self._send_results(future.request, True, future.exception())
-        else:
-            self._send_results(future.request, False, future.result())
-
-    def _send_results(self, request, iserror, results):
-        if iserror:
-            results = marshal.dumps((True, request, results, None))
-        else:
-            results = marshal.dumps((True, request, None, results))
-        self.send(results)
-
-    def proxy(self):
-        """Return a Future that will result in a proxy object in the future."""
-        f = Future(self.loop)
-        self._proxy_futures.append(f)
-
-        if self._proxy:
-            f.set_result(self._proxy)
-
-        return f
-
-    def connection_lost(self, reason=None):
-        """Tell the factory we lost our connection."""
-        print "lost connection, " + str(reason)
-        self.factory.lost_connection(self)
-        self.factory = None
-
 class MsgPackProxy(Proxy):
+    """A MessagePack-RPC Proxy."""
+
     def __init__(self, loop, protocol):
+        """MsgPackProxy
+
+        loop -- A pyev loop.
+        protocol -- An instance of MsgPackProtocol.
+
+        """
         self.loop = loop
         self.protocol = protocol
-        self.calls = set()
         self.request_num = 0
         self.requests = dict()
         self.timeout = None
 
     def set_timeout(self, timeout):
+        """Set the timeout of blocking calls, None means block forever.
+
+        timeout -- seconds after which to raise a TimeoutError for blocking calls.
+
+        """
         self.timeout = timeout
 
     def call(self, method, *args):
@@ -336,6 +203,7 @@ class MsgPackProtocol(Protocol):
             f.set_result(self._proxy)
 
     def response(self, msgtype, msgid, error, result):
+        """Handle an incoming response."""
         self._proxy.response(msgid, error, result)
 
     def notify(self, msgtype, method, params):
