@@ -35,7 +35,8 @@ class MyObject(object):
         return self.executor.submit_delay(delay, self.add, a, b)
 
 if __name__ == "__main__":
-    loop = whizzer.default_loop()
+    loop = pyev.default_loop()
+    sighand = whizzer.SignalHandler(loop)
     factory = rpc.RPCProtocolFactory(loop, rpc.ObjectDispatch(MyObject(loop)))
     factory.protocol = rpc.MsgPackProtocol
     server = whizzer.UnixServer(loop, factory, "msgpack_adder")

@@ -20,7 +20,10 @@
 # THE SOFTWARE.
 
 import os
+import signal
 import socket
+
+import pyev
 
 from .connections import SocketConnection
 from .errors import ConnectionClosedError, BufferOverflowError

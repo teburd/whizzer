@@ -28,20 +28,7 @@ class SignalHandler(object):
         self.loop = loop
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop, self.handle_sigint)
         self.sigint_watcher.start()
-        self.servers = []
-
-    def register_server(self, server):
-        """Registering a server with the signal handler will allow the server
-        to be gracefully shutdown whenever a signal is caught. Otherwise
-        its basically killed.
-        """
-        self.servers.append(server)
 
     def handle_sigint(self, watcher, events):
         """Catches the SIGINT signal and shutsdown all registered servers."""
-        for server in self.servers:
-            try:
-                server.close()
-            except Exception as e:
-                print(e)
         self.loop.unloop()
