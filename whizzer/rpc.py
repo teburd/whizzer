@@ -6,14 +6,15 @@ from .futures import Future
 
 
 class RPCError(Exception):
+    name = "RPCError"
     def to_tuple(self):
-        return (self.__class__.__name__, self.message)
+        return (self.name, str(self))
 
 class UnknownMethodError(RPCError):
-    pass
+    name = "UnknownMethodError"
 
 class BadArgumentsError(RPCError):
-    pass
+    name = "BadArgumentsError"
 
 class Dispatch(object):
     """Basic method dispatcher."""
@@ -33,7 +34,13 @@ class Dispatch(object):
         May raise an exception if the method isn't in the dict.
 
         """
-        return self.methods[method](*args)
+        if method not in self.methods:
+            raise UnknownMethodError
+
+        try:
+            return self.methods[method](*args)
+        except TypeError as e:
+            raise BadArgumentsError(str(e))
     
     def add(self, fn, name=None):
         """Add a method that the dispatcher will know about.
@@ -210,15 +217,17 @@ class MsgPackProtocol(Protocol):
         """Handle an incoming notify request."""
         self.dispatch.call(method, params)
 
-    def request(self, msgtype, msgid, method, params):
+    def request(self, msgtype, msgid, method, params=[]):
         """Handle an incoming call request."""
         result = None
         error = None
 
         try:
             result = self.dispatch.call(method, params)
+        except RPCError as e:
+            self.send_response(msgid, e.to_tuple(), None)
         except Exception as e:
-            print "Got Exception " + str(e)
+            print "Got " + e.__class__.__name__ + " with message " + str(e)
             error = "Exception"
 
         if isinstance(result, Future):

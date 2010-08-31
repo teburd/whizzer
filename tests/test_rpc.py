@@ -140,6 +140,7 @@ class TestMsgPackProtocol(unittest.TestCase):
     def mock_send_response(self, msgid, error, result):
         """Mock send response to make testing narrowed down and simpler."""
         self.response = (msgid, error, result)
+        print "response was " + str(self.response)
     
     def test_connection_made(self):
         future_proxy = self.protocol.proxy()
@@ -154,12 +155,16 @@ class TestMsgPackProtocol(unittest.TestCase):
     def test_handle_unknown_request(self):
         self.protocol.send_response = self.mock_send_response
         self.protocol.request(0, 0, "blah_add", (1, 2))
-        self.assertTrue(self.response == (0, rpc.UnknownMethodError.__name__, None))
+        self.assertTrue(self.response[0] == 0)
+        self.assertTrue(self.response[1][0] == rpc.UnknownMethodError.name)
+        self.assertTrue(self.response[2] == None)
 
     def test_handle_badargs_request(self):
         self.protocol.send_response = self.mock_send_response
         self.protocol.request(0, 0, "add", (1, 2, 3))
-        self.assertTrue(self.response == (0, rpc.BadArgumentsError.__name__, None))
+        self.assertTrue(self.response[0] == 0)
+        self.assertTrue(self.response[1][0] == rpc.BadArgumentsError.name)
+        self.assertTrue(self.response[2] == None)
 
     def test_handle_exceptioned_request(self):
         self.assertRaises(Exception, self.protocol.request, 0, 0, "exception")
@@ -167,7 +172,7 @@ class TestMsgPackProtocol(unittest.TestCase):
     def test_handle_rpcexceptioned_request(self):
         self.protocol.send_response = self.mock_send_response
         self.protocol.request(0, 0, "rpc_error")
-        self.assertNotNone(self.response[1])
+        self.assertTrue(self.response[1] != None)
 
     def test_notify(self):
         pass
