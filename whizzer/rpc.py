@@ -35,7 +35,7 @@ class Dispatch(object):
 
         """
         if method not in self.methods:
-            raise UnknownMethodError
+            raise UnknownMethodError("Unknown Method " + method)
 
         try:
             return self.methods[method](*args)
@@ -225,7 +225,7 @@ class MsgPackProtocol(Protocol):
         try:
             result = self.dispatch.call(method, params)
         except RPCError as e:
-            self.send_response(msgid, e.to_tuple(), None)
+            error = e.to_tuple()
         except Exception as e:
             print "Got " + e.__class__.__name__ + " with message " + str(e)
             error = "Exception"
