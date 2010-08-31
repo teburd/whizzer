@@ -164,7 +164,7 @@ class Future(object):
     def add_done_callback(self, fn):
         """Attaches a callable fn to the future that will be called when the
         future is cancelled or finishes running. fn will be called with the
-        future as its only argument.
+        future as its only parameter.
 
         Added callables are called in the order that they were added and are
         always called in a thread belonging to the process that added them. If
@@ -174,7 +174,36 @@ class Future(object):
         If the future has already completed or been cancelled then fn will be
         called immediately.
         """
-        self._done_callbacks.append(fn)
+        if not self._done:
+            self._done_callbacks.append(fn)
+        else:
+            fn(self)
+
+    def add_result_callback(self, fn):
+        """Add a callback that will be given the results of the Future as its
+        only parameter.
+
+        fn -- a callable taking the expected results as a parameter
+
+        """
+        if not self._result:
+            self._result_callbacks.append(fn)
+        else:
+            fn(self)
+
+    def add_exception_callback(self, fn):
+        """Add a callback that will be given the exception of the Future as its
+        only parameter.
+
+        fn -- a callable taking a single parameter, a possible exception of the 
+              future
+
+        """
+        if not self._exception:
+            self._result_callbacks.append(fn)
+        else:
+            fn(self)
+
 
     def set_running_or_notify_cancel(self):
         """Should be called by Executor implementations before executing the
