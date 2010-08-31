@@ -54,7 +54,6 @@ if __name__ == "__main__":
     factory = whizzer.ProtocolFactory(loop)
     factory.protocol = EchoProtocol
     server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
-    sighandler.register_server(server)
 
     stats_watcher = pyev.Timer(2.0, 2.0, loop, statistics)
     stats_watcher.start()

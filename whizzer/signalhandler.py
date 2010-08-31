@@ -21,6 +21,7 @@
 
 
 import signal
+import sys
 import pyev
 
 class SignalHandler(object):
@@ -31,4 +32,5 @@ class SignalHandler(object):
 
     def handle_sigint(self, watcher, events):
         """Catches the SIGINT signal and shutsdown all registered servers."""
-        self.loop.unloop()
+        self.loop.unloop(pyev.EVUNLOOP_ALL)
+        sys.exit(0)

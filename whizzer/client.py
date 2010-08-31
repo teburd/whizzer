@@ -20,7 +20,10 @@
 # THE SOFTWARE.
 
 import socket
+import signal
+import pyev
 from .connections import SocketConnection
+from .futures import Future
 
 class ClientConnection(SocketConnection):
     """Represents a connection to a server from a client. A SocketConnection template
@@ -30,6 +33,8 @@ class ClientConnection(SocketConnection):
         SocketConnection.__init__(self, loop, sock)
         self.client = client 
         self.protocol = protocol
+        self.connect_future = None
+        self.connect_watcher = None
 
     def read(self, data):
         """Pass along the data from the real connection to the protocol."""
@@ -62,14 +67,35 @@ class SocketClient(object):
         self.loop = loop
         self.factory = factory
         self.connection = None
+        self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop, self._interrupt)
+        self.sigint_watcher.start()
+
+    def _interrupt(self, watcher, events):
+        self.close()
 
     def _connect(self, sock):
+        """Start watching the socket for it to be writtable."""
+        self.connect_watcher = pyev.Io(sock, pyev.EV_WRITE, self.loop, self._do_connect, sock)
+        self.connect_watcher.start()
+        self.connect_future = Future(self.loop)
+        return self.connect_future
+
+    def _do_connect(self, watcher, events):
+        """Once the socket is writtable, its connected."""
+        sock = watcher.data
         protocol = self.factory.build()
         self.connection = ClientConnection(self.loop, sock, protocol, self)
         protocol.make_connection(self.connection)
+        self.connect_watcher.stop()
+        self.connect_watcher = None
+        self.connect_future.set_result(True)
   
     def connect(self):
-        """Should be overridden to create a socket and pass it to _connect."""
+        """Should be overridden to create a socket and connect it.
+        
+        Once the socket is connected it should be passed to _connect.
+
+        """
         pass
 
     def connection_lost(self, reason=None):
@@ -83,6 +109,9 @@ class SocketClient(object):
 
     def close(self):
         """Close the client connection."""
+        if self.connect_watcher:
+            self.connect_watcher.stop()
+            self.connect_watcher = None
         self.connection.close()
         self.connection = None
 
@@ -92,11 +121,19 @@ class UnixClient(SocketClient):
         SocketClient.__init__(self, loop, factory)
         self.path = path
 
+    def _do_connect(self, watcher, events):
+        """Once the socket is writtable, its connected."""
+        self.connect_watcher.stop()
+        self._connect(watcher.sock)
+        self.connect_watcher = None
+        self.connect_future.set_result(True)
+
     def connect(self):
         """Create and connect to the socket."""
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.setblocking(False)
         sock.connect(self.path)
-        self._connect(sock)
+        return self._connect(sock)
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
@@ -109,5 +146,5 @@ class TcpClient(SocketClient):
         """Create and connect to the socket."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self.host, self.port))
-        self._connect(sock)
+        return self._connect(sock)
 
