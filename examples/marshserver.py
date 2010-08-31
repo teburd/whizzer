@@ -8,8 +8,6 @@ import time
 import cProfile
 import pstats
 
-
-
 class MyObject(object):
     def __init__(self, loop):
         self.loop = loop
@@ -40,5 +38,4 @@ if __name__ == "__main__":
     factory = rpc.RPCProtocolFactory(loop, rpc.ObjectDispatch(MyObject(loop)))
     factory.protocol = rpc.MarshalRPCProtocol
     server = whizzer.UnixServer(loop, factory, "marshal_adder")
-    sighandler.register_server(server)
     loop.loop()

@@ -20,6 +20,8 @@
 # THE SOFTWARE.
 
 import sys
+import time
+
 import pyev
 
 sys.path.insert(0, '..')
@@ -47,9 +49,16 @@ if __name__ == "__main__":
     print f1.result()
     print f4.result()
 
-    t = timeit.Timer('proxy.call("add", 2, 3)', 'from __main__ import proxy')
-    r = t.timeit(10000)
-    print "Calls per second: %f" % (10000.0/r)
-    t = timeit.Timer('proxy.notify("add", 2, 3)', 'from __main__ import proxy')
-    t = t.timeit(10000)
-    print "Notifies per second: %f" %(10000.0/t)
+    before = time.time()
+    for x in xrange(0, 10000):
+        proxy.notify("add", 2, 3)
+    proxy.call("add", 2, 3)
+    ntime = time.time() - before
+   
+    before = time.time()
+    for x in xrange(0, 10000):
+        proxy.call("add", 2, 3)
+    ctime = time.time() - before
+
+    print "Notifies per second: %f" %(10000.0/ntime)
+    print "Calls per second: %f" % (10000.0/ctime)
