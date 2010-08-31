@@ -144,7 +144,7 @@ class TestMsgPackProtocol(unittest.TestCase):
     def test_connection_made(self):
         future_proxy = self.protocol.proxy()
         self.protocol.connection_made()
-        self.assertIsInstance(future_proxy.result(), rpc.Proxy)
+        self.assertTrue(isinstance(future_proxy.result(), rpc.Proxy))
 
     def test_handle_request(self):
         self.protocol.send_response = self.mock_send_response
