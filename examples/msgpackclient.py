@@ -34,7 +34,7 @@ if __name__ == "__main__":
     factory.protocol = rpc.MsgPackProtocol
     sighandler = whizzer.SignalHandler(loop)
     client = whizzer.UnixClient(loop, factory, "msgpack_adder")
-    client.connect()
+    client.connect().result()
     proxy = factory.proxy(0).result()
     print proxy.call("add", 2, 3)
     proxy.set_timeout(5.0)

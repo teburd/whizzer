@@ -116,7 +116,7 @@ class TestSocketConnection(unittest.TestCase):
         msg = b'hello'
         t = server.SocketConnection(loop, self.ssock)
         t.write(msg)
-        loop.loop(pyev.EVLOOP_ONESHOT)
+        loop.loop(pyev.EVLOOP_NONBLOCK)
         rmsg = self.csock.recv(len(msg))
         self.assertEqual(rmsg, msg)
 
@@ -138,7 +138,7 @@ class TestSocketConnection(unittest.TestCase):
         t = server.SocketConnection(loop, self.ssock)
         t.read = self.read
         self.csock.send(b'hello')
-        loop.loop(pyev.EVLOOP_ONESHOT)
+        loop.loop(pyev.EVLOOP_NONBLOCK)
         self.assertTrue(self.reads == 1)
 
     def test_error(self):
@@ -146,7 +146,7 @@ class TestSocketConnection(unittest.TestCase):
         t.error = self.error
         self.csock.close()
         t.write(b'hello')
-        loop.loop(pyev.EVLOOP_ONESHOT)
+        loop.loop(pyev.EVLOOP_NONBLOCK)
         self.assertTrue(self.errors == 1)
 
 class TestServerConnection(unittest.TestCase):
@@ -172,6 +172,7 @@ class TestServerConnection(unittest.TestCase):
         self.server = None
 
     def test_creation(self):
+        print("test_creation")
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         self.assertTrue(t.protocol.transport == t)
@@ -179,15 +180,17 @@ class TestServerConnection(unittest.TestCase):
         self.assertTrue(t.server == self.server)
 
     def test_write(self):
+        print("test_write")
         msg = b'hello'
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         t.write(msg)
-        loop.loop(pyev.EVLOOP_ONESHOT)
+        loop.loop(pyev.EVLOOP_NONBLOCK)
         rmsg = self.csock.recv(len(msg))
         self.assertEqual(rmsg, msg)
 
     def test_close(self):
+        print("test_close")
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         t.close()
@@ -196,29 +199,33 @@ class TestServerConnection(unittest.TestCase):
         self.assertTrue(self.protocol.losses == 1)
 
     def test_closed_write(self):
+        print("test_closed_write")
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         t.close()
         self.assertRaises(errors.ConnectionClosedError, t.write, ("hello"))
 
     def test_overflow_write(self):
+        print("test_overflow_write")
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         self.assertRaises(errors.BufferOverflowError, t.write, bytes([x for x in range(0, 1024*1024)]))
 
     def test_read(self):
+        print("test_read")
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         self.csock.send(b'hello')
-        loop.loop(pyev.EVLOOP_ONESHOT)
+        loop.loop(pyev.EVLOOP_NONBLOCK)
         self.assertTrue(self.protocol.reads == 1)
 
     def test_error(self):
+        print("test_error")
         t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
         self.protocol.make_connection(t)
         self.csock.close()
         t.write(b'hello')
-        loop.loop(pyev.EVLOOP_ONESHOT)
+        loop.loop(pyev.EVLOOP_NONBLOCK)
         self.assertTrue(self.protocol.losses == 1)
         self.assertTrue(self.server.errors == 1)
 

@@ -121,13 +121,6 @@ class UnixClient(SocketClient):
         SocketClient.__init__(self, loop, factory)
         self.path = path
 
-    def _do_connect(self, watcher, events):
-        """Once the socket is writtable, its connected."""
-        self.connect_watcher.stop()
-        self._connect(watcher.sock)
-        self.connect_watcher = None
-        self.connect_future.set_result(True)
-
     def connect(self):
         """Create and connect to the socket."""
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

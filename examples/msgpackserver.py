@@ -7,8 +7,11 @@ import pyev
 import time
 import cProfile
 import pstats
+import gc
 
 
+def gc_object_count(cls):
+    return len([obj for obj in gc.get_objects() if isinstance(obj, cls)])
 
 class MyObject(object):
     def __init__(self, loop):
@@ -23,6 +26,7 @@ class MyObject(object):
         print("Calls in the last second second " + str(self.calls))
         self.last = time.time()
         self.calls = 0
+        print("GC has %d MsgPackProtocol objects, %d ServerConnection objects" % (gc_object_count(rpc.MsgPackProtocol), gc_object_count(whizzer.server.ServerConnection)))
 
     @rpc.remote
     def add(self, a, b):
@@ -36,6 +40,7 @@ class MyObject(object):
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
+    gc.set_debug(gc.DEBUG_STATS)
     sighand = whizzer.SignalHandler(loop)
     factory = rpc.RPCProtocolFactory(loop, rpc.ObjectDispatch(MyObject(loop)))
     factory.protocol = rpc.MsgPackProtocol
