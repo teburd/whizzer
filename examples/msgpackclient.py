@@ -21,6 +21,7 @@
 
 import sys
 import time
+import signal
 
 import pyev
 
@@ -28,8 +29,18 @@ sys.path.insert(0, '..')
 import whizzer
 from whizzer import rpc
 
+global run
+run = True
+
+def stop_run(watcher, events):
+    global run
+    print("stopping my own event loop this way")
+    run = False
+
 if __name__ == "__main__":
     loop = pyev.default_loop()
+    sigwatcher = pyev.Signal(signal.SIGINT, loop, stop_run)
+    sigwatcher.start()
     factory = rpc.RPCProtocolFactory(loop)
     factory.protocol = rpc.MsgPackProtocol
     sighandler = whizzer.SignalHandler(loop)
@@ -48,17 +59,23 @@ if __name__ == "__main__":
     print f2.result()
     print f1.result()
     print f4.result()
- 
-    while True:
+
+    while run:
         before = time.time()
         for x in xrange(0, 10000):
-            proxy.notify("add", 2, 3)
+            try:
+                proxy.notify("add", 2, 3)
+            except:
+                run = False
         proxy.call("add", 2, 3)
         ntime = time.time() - before
        
         before = time.time()
         for x in xrange(0, 10000):
-            proxy.call("add", 2, 3)
+            try:
+                proxy.call("add", 2, 3)
+            except:
+                run = False
         ctime = time.time() - before
 
         print "Notifies per second: %f" %(10000.0/ntime)
