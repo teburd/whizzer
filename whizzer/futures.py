@@ -103,6 +103,60 @@ class Executor(object):
 
         """
 
+class Deferred(object):
+    """A deferred call or a call that will happen in the future when a result is ready.
+
+    Takes a future and allows the creation of callback trees and chains that are performed.
+
+    Ex:
+
+    Chaining:
+    f = Future
+    d = Deferred(f).add_callback(print).add_callback(log).add_callback(close)
+
+    f.result() # print is called with the result, log is called with the result of print, close is called with the result of log
+
+    Branching:
+    f = Future()
+    d = Deferred(f)
+    d.add_callback(log)
+    d.add_callback(close)
+    f.result() # print is called with the result, log is called with the result
+    
+    Error handling:
+    f = Future()
+
+    d = Deferred(f)
+    d.add_errback(failme).add_callbacks(print, log)
+
+    f.exception() # failme is called with the exception as its only parameter, if failme raises log is called, if not print is called
+
+    """
+    def __init__(self, future):
+        future.add_done_callback(self._perform)
+
+    def _perform(self, f):
+        """Perform the required callbacks."""
+        try:
+            self.callbacks(f.result())
+        except Exception as e:
+            self.errbacks(e)
+        
+    def callbacks(self, result):
+        """Perform the callbacks added to this deferred."""
+
+    def errbacks(self, err):
+        """Perform the errbacks added to this deferred."""
+
+    def add_callback(self, fn):
+        """Add a callback."""
+
+    def add_errback(self, fn):
+        """Add a errback."""
+
+    def add_callbacks(self, fn, errfn):
+        """Same as doing add_callback and add_errback but in one call."""
+
 
 class Future(object):
     """Future represents a future result. This is the return of an asynchronous
@@ -178,32 +232,6 @@ class Future(object):
             self._done_callbacks.append(fn)
         else:
             fn(self)
-
-    def add_result_callback(self, fn):
-        """Add a callback that will be given the results of the Future as its
-        only parameter.
-
-        fn -- a callable taking the expected results as a parameter
-
-        """
-        if not self._result:
-            self._result_callbacks.append(fn)
-        else:
-            fn(self)
-
-    def add_exception_callback(self, fn):
-        """Add a callback that will be given the exception of the Future as its
-        only parameter.
-
-        fn -- a callable taking a single parameter, a possible exception of the 
-              future
-
-        """
-        if not self._exception:
-            self._result_callbacks.append(fn)
-        else:
-            fn(self)
-
 
     def set_running_or_notify_cancel(self):
         """Should be called by Executor implementations before executing the
