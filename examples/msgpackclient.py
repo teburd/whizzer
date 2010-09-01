@@ -48,18 +48,19 @@ if __name__ == "__main__":
     print f2.result()
     print f1.result()
     print f4.result()
-   
-    before = time.time()
-    for x in xrange(0, 10000):
-        proxy.notify("add", 2, 3)
-    proxy.call("add", 2, 3)
-    ntime = time.time() - before
-   
-    before = time.time()
-    for x in xrange(0, 10000):
+ 
+    while True:
+        before = time.time()
+        for x in xrange(0, 10000):
+            proxy.notify("add", 2, 3)
         proxy.call("add", 2, 3)
-    ctime = time.time() - before
+        ntime = time.time() - before
+       
+        before = time.time()
+        for x in xrange(0, 10000):
+            proxy.call("add", 2, 3)
+        ctime = time.time() - before
 
-    print "Notifies per second: %f" %(10000.0/ntime)
-    print "Calls per second: %f" % (10000.0/ctime)
-    
+        print "Notifies per second: %f" %(10000.0/ntime)
+        print "Calls per second: %f" % (10000.0/ctime)
+        

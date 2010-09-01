@@ -85,7 +85,7 @@ class SocketConnection(Connection):
     
     def _do_write(self, watcher, events):
         try:
-            sent = self.sock.send(bytes(buf))
+            sent = self.sock.send(bytes(self.write_buffer))
             self.write_buffer = self.write_buffer[written:]
             if len(self.write_buffer) == 0:
                 self.write_watcher.stop()
