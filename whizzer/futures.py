@@ -133,19 +133,34 @@ class Deferred(object):
 
     """
     def __init__(self, future):
-        future.add_done_callback(self._perform)
-        self.callbacks = []
+        self.future = future
+        self.future.add_done_callback(self._perform)
+        self._callbacks = []
     
     def _perform(self, f):
         """Perform the required callbacks."""
+        print("performing")
+        r = None
+        e = None
+        err = False
         try:
-            self.callbacks(f.result())
-        except Exception as e:
+            r = f.result()
+        except Exception as _e:
+            print("got exception " + str(e))
+            e = _e
+            err = True
+
+        if err:
             self.errbacks(e)
-        
+        else:
+            self.callbacks(r)
+    
     def callbacks(self, result):
         """Perform the callbacks added to this deferred."""
-        for (f,d,fn,errfn) in self.callbacks:
+        print("callbacks")
+        for (f, d, fn, fn_args, fn_kwargs, errfn, efn_args, efn_kwargs) in self._callbacks:
+
+            print("    " + fn.__name__)
             r = None
             e = None
             err = False
@@ -153,8 +168,9 @@ class Deferred(object):
             # do this seperatly to avoid propogating
             # errors in the deferred or future objects
             try:
-                r = fn(result)
+                r = fn(result, *fn_args, **fn_kwargs)
             except Exception as _e:
+                print("got exception " + str(_e))
                 e = _e
                 err = True
 
@@ -165,7 +181,9 @@ class Deferred(object):
     
     def errbacks(self, result):
         """Perform the errbacks added to this deferred."""
-        for (f,d,fn,errfn) in self.callbacks:
+        print("errbacks")
+        for (f, d, fn, fn_args, fn_kwargs, errfn, efn_args, efn_kwargs) in self._callbacks:
+            print("    " + errfn.__name__)
             r = None
             e = None
             err = False
@@ -173,8 +191,9 @@ class Deferred(object):
             # do this seperately to avoid propogating
             # errors in the deferred or future objects
             try:
-                r = errfn(result)
+                r = errfn(result, *efn_args, **efn_kwargs)
             except Exception as _e:
+                print("got exception " + str(_e))
                 e = _e
                 err = True
 
@@ -183,25 +202,25 @@ class Deferred(object):
             else:
                 f.set_result(r)
 
-    def add_callback(self, fn):
+    def add_callback(self, fn, *args, **kwargs):
         """Add a callback and return a deferred."""
-        f = Future()
+        f = Future(self.future._loop)
         d = Deferred(f)
-        self.callbacks.append((f,d,fn,None))
+        self._callbacks.append((f, d, fn, args, kwargs, None, None, None))
         return d
 
-    def add_errback(self, fn):
+    def add_errback(self, fn, *args, **kwargs):
         """Add a errback."""
-        f = Future()
+        f = Future(self.future._loop)
         d = Deferred(f)
-        self.callbacks.append((f,d,None,fn))
+        self._callbacks.append((f, d, None, None, None, fn, args, kwargs))
         return d
 
-    def add_callbacks(self, fn, errfn):
+    def add_callbacks(self, fn, errfn, *args, **kwargs):
         """Same as doing add_callback and add_errback but in one call."""
-        f = Future()
+        f = Future(self.future._loop)
         d = Deferred(f)
-        self.callbacks.append((f,d,fn,errfn))
+        self._callbacks.append((f, d, fn, args, kwargs, errfn, args, kwargs))
         return d
 
 class Future(object):
