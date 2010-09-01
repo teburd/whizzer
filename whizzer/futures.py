@@ -134,7 +134,8 @@ class Deferred(object):
     """
     def __init__(self, future):
         future.add_done_callback(self._perform)
-
+        self.callbacks = []
+    
     def _perform(self, f):
         """Perform the required callbacks."""
         try:
@@ -144,19 +145,64 @@ class Deferred(object):
         
     def callbacks(self, result):
         """Perform the callbacks added to this deferred."""
+        for (f,d,fn,errfn) in self.callbacks:
+            r = None
+            e = None
+            err = False
+        
+            # do this seperatly to avoid propogating
+            # errors in the deferred or future objects
+            try:
+                r = fn(result)
+            except Exception as _e:
+                e = _e
+                err = True
 
-    def errbacks(self, err):
+            if err:
+                f.set_exception(e)
+            else:
+                f.set_result(r)
+    
+    def errbacks(self, result):
         """Perform the errbacks added to this deferred."""
+        for (f,d,fn,errfn) in self.callbacks:
+            r = None
+            e = None
+            err = False
+        
+            # do this seperately to avoid propogating
+            # errors in the deferred or future objects
+            try:
+                r = errfn(result)
+            except Exception as _e:
+                e = _e
+                err = True
+
+            if err:
+                f.set_exception(e)
+            else:
+                f.set_result(r)
 
     def add_callback(self, fn):
-        """Add a callback."""
+        """Add a callback and return a deferred."""
+        f = Future()
+        d = Deferred(f)
+        self.callbacks.append((f,d,fn,None))
+        return d
 
     def add_errback(self, fn):
         """Add a errback."""
+        f = Future()
+        d = Deferred(f)
+        self.callbacks.append((f,d,None,fn))
+        return d
 
     def add_callbacks(self, fn, errfn):
         """Same as doing add_callback and add_errback but in one call."""
-
+        f = Future()
+        d = Deferred(f)
+        self.callbacks.append((f,d,fn,errfn))
+        return d
 
 class Future(object):
     """Future represents a future result. This is the return of an asynchronous
