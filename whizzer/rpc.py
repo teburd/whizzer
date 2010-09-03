@@ -227,7 +227,7 @@ class MsgPackProtocol(Protocol):
         except RPCError as e:
             error = e.to_tuple()
         except Exception as e:
-            print "Got " + e.__class__.__name__ + " with message " + str(e)
+            print("Got " + e.__class__.__name__ + " with message " + str(e))
             error = "Exception"
 
         if isinstance(result, Future):

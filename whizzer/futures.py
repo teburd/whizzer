@@ -150,10 +150,14 @@ class Deferred(object):
             e = _e
             err = True
 
-        if err:
-            self.errbacks(e)
+        if isinstance(r, Future):
+            self.future = r
+            self.future.add_done_callback(self._perform)
         else:
-            self.callbacks(r)
+            if err:
+                self.errbacks(e)
+            else:
+                self.callbacks(r)
     
     def callbacks(self, result):
         """Perform the callbacks added to this deferred."""
