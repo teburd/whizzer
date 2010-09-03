@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
 # 
@@ -36,11 +35,12 @@ Topic :: Internet
 
 
 setup(name='whizzer',
-      version='0.2',
+      version='0.2.1',
       description='Fast event driven socket server framework based on pyev',
       author='Tom Burdick',
       author_email='thomas.burdick@gmail.com',
       url='http://bitbucket.org/bfrog/whizzer',
       packages=['whizzer'],
+      install_requires=['pyev', 'msgpack-python'],
       classifiers=CLASSIFIERS,
      )
