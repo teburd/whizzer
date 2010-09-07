@@ -22,8 +22,8 @@
 import socket
 import signal
 import pyev
-from .connections import SocketConnection
-from .futures import Future
+from .transport import SocketTransport
+from .deferred import Deferred
 
 class ClientConnection(SocketConnection):
     """Represents a connection to a server from a client. A SocketConnection template
@@ -71,7 +71,7 @@ class SocketClient(object):
         self.sigint_watcher.start()
 
     def _interrupt(self, watcher, events):
-        self.close()
+        self.shutdown()
 
     def _connect(self, sock):
         """Start watching the socket for it to be writtable."""
