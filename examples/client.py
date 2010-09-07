@@ -29,9 +29,9 @@ import whizzer
 from whizzer import debug
 
 class EchoClientProtocol(whizzer.Protocol):
-    def __init__(self, loop, manager):
+    def __init__(self, loop, factory):
         whizzer.Protocol.__init__(self, loop)
-        self.manager = manager
+        self.factory = factory
 
     def connection_made(self):
         """When the connection is made, send something."""
@@ -42,38 +42,32 @@ class EchoClientProtocol(whizzer.Protocol):
         self.lose_connection()
 
     def connection_lost(self, reason=None):
-        self.manager.lost_connection(self)
-        self.manager = None
+        self.factory.lost_connection(self)
+        self.factory = None
 
 class ClientFactory(whizzer.ProtocolFactory):
-    def __init__(self, loop, manager):
-        whizzer.ProtocolFactory.__init__(self, loop)
-        self.manager = manager
-        self.protocol = EchoClientProtocol
-
-    def build(self):
-        return self.protocol(self.loop, self.manager)
-
-
-class ClientManager(object):
     def __init__(self, loop):
-        self.loop = loop
-        self.factory = ClientFactory(loop, self)
-        self.clients = set()
-        self.timer = pyev.Timer(1.0, 0.001, loop, self.connect, self.factory)
+        whizzer.ProtocolFactory.__init__(self, loop)
+        self.protocol = EchoClientProtocol
+        self.protocols = set()
+        self.timer = pyev.Timer(1.0, 0.001, loop, self.connect)
         self.timer.start()
 
     def connect(self, watcher, events):
-        client = whizzer.TcpClient(self.loop, self.factory, "127.0.0.1", 2000)
+        client = whizzer.TcpClient(self.loop, self, "127.0.0.1", 2000)
         client.connect()
-        self.clients.add(client)
 
-    def lost_connection(self, client):
-        self.clients.remove(client)
+    def build(self):
+        protocol = self.protocol(self.loop, self)
+        self.protocols.add(protocol)
+        return protocol
+
+    def lost_connection(self, protocol):
+        self.protocols.remove(protocol)
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
     sighandler = whizzer.SignalHandler(loop)
-    cm = ClientManager(loop)
+    cf = ClientFactory(loop)
     cProfile.run('loop.loop()', 'client_profile')
     pstats.Stats('client_profile').sort_stats('time').print_stats()
