@@ -31,18 +31,18 @@ class Deferred(object):
         self._callbacks = []
         self._errbacks = []
    
-    def callbacks(self, *args):
+    def callbacks(self, result):
         """Perform the callbacks added to this deferred."""
         if self._called:
             raise CalledError()
 
-        for (d, cb, cb_args) in self._callbacks:
+        for (d, cb, cb_args, cb_kwargs) in self._callbacks:
             r = None
             e = None
             err = False
         
             try:
-                r = cb(result, *cb_args, *args)
+                r = cb(result, *cb_args, **cb_kwargs)
             except Exception as _e:
                 e = _e
                 err = True
@@ -52,18 +52,18 @@ class Deferred(object):
             else:
                 d.callbacks(r)
     
-    def errbacks(self, *args):
+    def errbacks(self, result):
         """Perform the errbacks added to this deferred."""
         if self._called:
             raise CalledError()
 
-        for (d, cb, cb_args) in self._errbacks:
+        for (d, cb, cb_args, cb_kwargs) in self._errbacks:
             r = None
             e = None
             err = False
         
             try:
-                r = cb(result, *cb_args, *args)
+                r = cb(result, *cb_args, **cb_kwargs)
             except Exception as _e:
                 e = _e
                 err = True
@@ -73,13 +73,13 @@ class Deferred(object):
             else:
                 d.callbacks(r)
  
-    def add_callback(self, callback, *args):
+    def add_callback(self, callback, *args, **kwargs):
         """Add a callback and return a deferred."""
         if self._called:
             raise CalledError()
 
         d = Deferred()
-        self._callbacks.append((d, callback, args))
+        self._callbacks.append((d, callback, args, kwargs))
         return d
 
     def add_errback(self, errback, *args):
@@ -88,12 +88,12 @@ class Deferred(object):
         self._errbacks.append((d, errback, args))
         return d
 
-    def add_callbacks(self, callback, errback, *args):
+    def add_callbacks(self, callback, errback, cb_args, cb_kwargs, eb_args, eb_kwargs):
         """Same as doing add_callback and add_errback but in one call."""
         f = Future(self.future._loop)
         d = Deferred()
-        self._callbacks.append((d, callback, args))
-        self._errbacks.append((d, errback, args))
+        self._callbacks.append((d, callback, cb_args, cb_kwargs))
+        self._errbacks.append((d, errback, eb_args, eb_kwargs))
         return d
 
     def wait(self, loop):
