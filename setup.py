@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 CLASSIFIERS = filter(None, map(str.strip,
 """                 
@@ -40,7 +40,7 @@ setup(name='whizzer',
       author='Tom Burdick',
       author_email='thomas.burdick@gmail.com',
       url='http://bitbucket.org/bfrog/whizzer',
-      packages=['whizzer'],
+      packages=find_packages(),
       install_requires=['pyev', 'msgpack-python'],
       classifiers=CLASSIFIERS,
      )
