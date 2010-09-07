@@ -19,44 +19,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import pyev
-import socket
-from .interfaces import Protocol as IProtocol
-from .interfaces import ProtocolFactory as IProtocolFactory
-
-
-"""Base protocol objects. A new protocol implementation should implement these objects missing
-methods or overload them as needed.
-"""
-
-class Protocol(IProtocol):
+class Protocol(object):
     """Basis of all client handling functionality."""
     def __init__(self, loop):
         self.loop = loop
 
     def make_connection(self, transport):
-        """Called by the factory when the connection has been made.
-
-        Most likely called right after the server call accept()
-
-        """
+        """Called externally when the transport is ready."""
         self.connected = True
         self.transport = transport
-        self.connection_made()
+        self.connection_ready()
 
-    def lose_connection(self):
-        """Closes the transport cleanly and informs the server that this connection has been closed."""
-        self.transport.close()
-        self.connected = False
+    def connection_ready(self):
+        """Called when the connection is ready to use."""
 
-class ProtocolFactory(IProtocolFactory):
-    """Constructor of protocols."""
+    def connection_lost(self, reason):
+        """Called when the connection has been lost."""
 
-    def __init__(self, loop):
-        self.loop = loop
-        self.protocol = None
+    def read(self, data):
+        """Handle an incoming stream of data."""
 
-    def build(self):
+class ProtocolFactory(object):
+    """Protocol factory."""
+    def build(self, loop):
         """Build and return a Protocol object."""
-        return self.protocol(self.loop)
+        return self.protocol(loop)
 

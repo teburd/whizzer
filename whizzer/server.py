@@ -28,38 +28,23 @@ import pyev
 from .connections import SocketConnection
 from .errors import ConnectionClosedError, BufferOverflowError
 
-class ServerConnection(SocketConnection):
-    """Represents a connection to the server from a remote client. 
-    A SocketConnection template implementation.
-    """
-    def __init__(self, loop, sock, protocol, server):
-        SocketConnection.__init__(self, loop, sock)
-        self.server = server
+class ServerConnection(object):
+    """Represents a connection to the server from a remote client."""
+
+    def __init__(self, loop, sock, sock_watcher, protocol, server):
+        """Create a server connection."""
+        self.loop = loop
+        self.sock = sock
+        self.sock_watcher = sock_watcher
         self.protocol = protocol
-        self.read = self.protocol.data
+        self.server = server
 
-    def error(self, error):
-        """There as an error, so clear any circular references and
-        tell the protocol.
-        """
+    def start(self):
+        """Start a server connection, this in turn starts the transport and read watcher."""
+        transport = Transport(self.loop, self.sock, self.sock_watcher)
+        self.protocol.connection_ready(transport)
 
-        self.protocol.connection_lost(error)
-        self.protocol.transport = None
-        self.server.connection_error(self, error)
-        
-    def close(self):
-        """Close a client connection and clear circular references.
-        
-        This should not be called by a protocol. This should be called
-        by the server holding on to this connection.
-        
-        """
-        SocketConnection.close(self)
-
-        self.protocol.connection_lost()
-        self.protocol.transport = None
-        self.server.connection_lost(self)
-
+       
 
 class SocketServer(SocketConnection):
     """A socket server."""
