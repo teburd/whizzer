@@ -44,10 +44,10 @@ class Connection(object):
         """Callback performed when the transport is closed."""
         self.server.remove_connection(self)
         self.protocol.connection_lost(reason)
-        if not isinstace(reason, ConnectionClosed):
+        if not isinstance(reason, ConnectionClosed):
             self.logger.warn("connection closed, reason: %s" % str(reason))
         else:
-            eslf.logger.info("connection closed")
+            self.logger.info("connection closed")
 
     def close(self):
         """Close the connection."""
@@ -76,6 +76,7 @@ class SocketServer(object):
         self.factory = factory
         self.sock = sock
         self.closed_fun = closed_fun
+        self.logger = logger
         self.connections = set()
         self._closing = False
         self._shutdown = False
@@ -141,11 +142,10 @@ class SocketServer(object):
         client connection waiting.
 
         """
-        protocol = self.factory.build()
+        protocol = self.factory.build(self.loop)
         try:
             sock, addr = self.sock.accept()
             connection = Connection(self.loop, sock, protocol, self, self.logger)
-            protocol.make_connection(connection)
             self.connections.add(connection)
             self.logger.info("added connection")
         except IOError as e:
@@ -164,7 +164,7 @@ class UnixServer(SocketServer):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.bind(path)
         self.sock.listen(conn_limit)
-        self.sock.set_blocking(False)
+        self.sock.setblocking(False)
         SocketServer.__init__(self, loop, factory, self.sock, closed_fun, logger)
 
     def shutdown(self):
@@ -188,5 +188,5 @@ class TcpServer(SocketServer):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((host, port))
         self.sock.listen(conn_limit)
-        self.sock.set_blocking(False)
+        self.sock.setblocking(False)
         SocketServer.__init__(self, loop, factory, self.sock, closed_fun, logger)

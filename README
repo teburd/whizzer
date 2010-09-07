@@ -2,20 +2,39 @@ Whizzer is a simple library built around the pyev module. Its named after
 one of my favorite rollercoasters of all time.
 
 Purpose:
-Whizzer is meant to make writting fast non-blocking socket servers with pyev
-simpler than using pyev by itself. It provides a basic abstraction for a socket
-server, client handling, and the protocol that the server is meant to talk.
+Whizzer is meant to make writting fast non-blocking socket servers using pyev 
+relatively simple.
 
 It might look similiar in nature to Twisted. Thats because I believe Twisted 
-does things right in the case of socket server abstraction. However I wanted
-an event driven library that was smaller, better documented, focused
-entirely on sockets, and used pyev.
+does things right! It is not my goal to reinvent all of Twisted. I simply wanted
+a socket handling library that was based on pyev. Implementing  a pyev reactor 
+seemed like a larger task then mimicking Twisted's Deferred, Protocol,
+and ProtocolFactory ideas. I still don't think I was wrong.
 
-It just happens that Python's up and coming futures PEP fit nicely in with
-the idea and I felt it would be useful when making something like an RPC
-library that used Whizzer.
+Usage:
 
-Anyways, here it all is, a Twisted, pyev based clone, that works with
-Python 3k and attempts to be PEP8 compliant.
+import signal
+import pyev
+from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.server import TcpServer
 
-Improve at your discretion.
+def interrupt(self, watcher, events):
+    watcher.loop.unloop()
+
+def close(self, reason):
+    pass
+
+class EchoProtocol(Protocol):
+    def data(self, data):
+        self.transport.write(data)
+
+if __name__ == "__main__":
+    loop = pyev.default_loop()
+    logger = logging.getLogger('myserver')
+    signal_watcher = pyev.Signal(signal.SIGINT, loop, interrupt)
+    signal_watcher.start()
+    factory = ProtocolFactory(loop)
+    factory.protocol = EchoProtocol
+    server = TcpServer(loop, factory, ('127.0.0.1', 5000), logger, close)
+    server.start()
+    loop.loop()

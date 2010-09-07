@@ -21,6 +21,8 @@
 
 import sys
 import time
+import signal
+import logging
 
 import pyev
 import cProfile
@@ -28,35 +30,32 @@ import pstats
 
 sys.path.insert(0, '..')
 
-import whizzer
+from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.server import TcpServer
 
-last = time.time()
-count = 0
-
-class EchoProtocol(whizzer.Protocol):
+class EchoProtocol(Protocol):
     def data(self, data):
-        global count
-        count += 1
-        self.transport.write(data)
+       self.transport.write(data)
 
-def statistics(watcher, events):
-    global count
-    global last
-    diff = time.time() - last
-    eps = count/diff
-    print("echos per second " + str(eps))
-    last = time.time()
-    count = 0
-    
+def interrupt(watcher, events):
+    watcher.loop.unloop()
+
+def close(reason):
+    pass
+
 if __name__ == "__main__":
     loop = pyev.default_loop()
-    sighandler = whizzer.SignalHandler(loop)
-    factory = whizzer.ProtocolFactory(loop)
+    logger = logging.getLogger('echo_server')
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+
+    signal_watcher = pyev.Signal(signal.SIGINT, loop, interrupt)
+    signal_watcher.start()
+    
+    factory = ProtocolFactory()
     factory.protocol = EchoProtocol
-    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
 
-    stats_watcher = pyev.Timer(2.0, 2.0, loop, statistics)
-    stats_watcher.start()
-
-    cProfile.run('loop.loop()', 'server_profile')
-    pstats.Stats('server_profile').sort_stats('time').print_stats()
+    server = TcpServer(loop, factory, close, logger, "127.0.0.1", 2000)
+    server.start()
+    
+    loop.loop()
