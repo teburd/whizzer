@@ -28,10 +28,9 @@ import pyev
 
 sys.path.insert(0, "..")
 
-from whizzer import server, errors, protocol
+from whizzer import server, protocol
 
 loop = pyev.default_loop()
-
 
 class FakeProtocol(protocol.Protocol):
     def __init__(self):
@@ -70,97 +69,6 @@ class FakeProtocol(protocol.Protocol):
         self.losses += 1
         print("losses " + str(self.losses))
 
-class FakeServer(object):
-    def __init__(self):
-        self.errors = 0
-        self.losses = 0
-
-    def connection_error(self, connection, error):
-        self.errors += 1
-
-    def connection_lost(self, connection):
-        self.losses += 1
-
-
-class TestServerConnection(unittest.TestCase):
-    def setUp(self):
-        print("Doing Setup")
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.bind("test_sock")
-        self.sock.listen(1)
-        self.csock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.csock.connect("test_sock")
-        self.ssock, self.saddr = self.sock.accept()
-        self.protocol = FakeProtocol()
-        self.server = FakeServer()
-
-    def tearDown(self):
-        print("Doing Teardown")
-        self.sock = None
-        self.csock = None
-        self.ssock = None
-        self.saddr = None
-        os.remove("test_sock")
-        self.protocol = None
-        self.server = None
-
-    def test_creation(self):
-        print("test_creation")
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        self.assertTrue(t.protocol.transport == t)
-        self.assertTrue(t.protocol == self.protocol)
-        self.assertTrue(t.server == self.server)
-
-    def test_write(self):
-        print("test_write")
-        msg = b'hello'
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        t.write(msg)
-        loop.loop(pyev.EVLOOP_NONBLOCK)
-        rmsg = self.csock.recv(len(msg))
-        self.assertEqual(rmsg, msg)
-
-    def test_close(self):
-        print("test_close")
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        t.close()
-        self.assertTrue(t.closed)
-        self.assertTrue(self.server.losses == 1)
-        self.assertTrue(self.protocol.losses == 1)
-
-    def test_closed_write(self):
-        print("test_closed_write")
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        t.close()
-        self.assertRaises(errors.ConnectionClosedError, t.write, ("hello"))
-
-    def test_overflow_write(self):
-        print("test_overflow_write")
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        self.assertRaises(errors.BufferOverflowError, t.write, bytes([x for x in range(0, 1024*1024)]))
-
-    def test_read(self):
-        print("test_read")
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        self.csock.send(b'hello')
-        loop.loop(pyev.EVLOOP_NONBLOCK)
-        self.assertTrue(self.protocol.reads == 1)
-
-    def test_error(self):
-        print("test_error")
-        t = server.ServerConnection(loop, self.ssock, self.protocol, self.server)
-        self.protocol.make_connection(t)
-        self.csock.close()
-        t.write(b'hello')
-        loop.loop(pyev.EVLOOP_NONBLOCK)
-        self.assertTrue(self.protocol.losses == 1)
-        self.assertTrue(self.server.errors == 1)
 
 if __name__ == '__main__':
     unittest.main()

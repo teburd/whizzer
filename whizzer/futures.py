@@ -104,10 +104,8 @@ class Executor(object):
         """
 
 class Deferred(object):
-    """A deferred call or a call that will happen in the future when a result is ready.
-
-    Takes a future and allows the creation of callback trees and chains that are performed.
-
+    """A generalized callback framework that takes a possible future result.
+    
     Ex:
 
     Chaining:
