@@ -30,7 +30,7 @@ class BufferOverflowError(Exception):
 
 class SocketTransport(object):
     """A buffered writtable transport."""
-    def __init__(self, loop, sock, read_fun, close_fun, max_size = 1024*512):
+    def __init__(self, loop, sock, read_cb, close_cb, max_size = 1024*512):
         """Creates a socket transport that will perform the given functions whenever
         the socket is readable or has an error. Writting to the transport by default 
         simply calls the send() function and checks for errors. If the error
@@ -40,19 +40,19 @@ class SocketTransport(object):
 
         loop -- pyev loop
         sock -- python socket object
-        read_fun -- read function (callback when the socket is read)
-        closed_fun -- closed function (callback when the socket has been closed)
+        read_cb -- read function (callback when the socket is read)
+        close_cb -- closed function (callback when the socket has been closed)
         max_size -- maximum user space buffer
 
         """
         self.loop = loop
         self.sock = sock
-        self.read_fun = read_fun
-        self.closed_fun = closed_fun
+        self.read_cb = read_cb
+        self.close_cb = close_cb
         self.max_size = max_size
         self.sock.setblocking(False)
-        self.read_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._do_read)
-        self.write_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._do_write)
+        self.read_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._readable)
+        self.write_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._writtable)
         self.write_buffer = bytearray()
         self.closed = False
 
@@ -142,7 +142,7 @@ class SocketTransport(object):
 
         Calls send using the userspace buffer (self.write_buffer) and checks
         for errors. If there are no errors then continue on as before.
-        Otherwise closes the socket and calls closed_fun with the error.
+        Otherwise closes the socket and calls close_cb with the error.
 
         """
         try:
@@ -160,9 +160,9 @@ class SocketTransport(object):
         """Called by the pyev watcher (self.read_watcher) whenever the socket
         is readable.
 
-        Calls recv and checks for errors. If there are no errors then read_fun
+        Calls recv and checks for errors. If there are no errors then read_cb
         is called with the newly arrived bytes. Otherwise closes the socket
-        and calls closed_fun with the error.
+        and calls close_cb with the error.
 
         """
         try:
@@ -170,7 +170,7 @@ class SocketTransport(object):
             if len(data) == 0:
                 self._close(ConnectionClosed())
             else:
-                self.read_fun(data)
+                self.read_cb(data)
         except IOError as e:
             self._close(e)
 
@@ -183,7 +183,7 @@ class SocketTransport(object):
         self.stop()
         self.sock.close()
         self.closed = True
-        self.closed_fun(e)
+        self.close_cb(e)
 
     def close(self):
         """Close the transport."""

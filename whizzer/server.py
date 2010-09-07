@@ -25,105 +25,156 @@ import socket
 
 import pyev
 
-from .connections import SocketConnection
-from .errors import ConnectionClosedError, BufferOverflowError
+from .transport import SocketTransport, ConnectionClosed
 
-class ServerConnection(object):
-    """Represents a connection to the server from a remote client."""
-
-    def __init__(self, loop, sock, sock_watcher, protocol, server):
+class Connection(object):
+    """A connection to the server from a remote client."""
+    def __init__(self, loop, sock, protocol, server, logger):
         """Create a server connection."""
         self.loop = loop
         self.sock = sock
-        self.sock_watcher = sock_watcher
         self.protocol = protocol
         self.server = server
+        self.logger = logger
+        self.transport = SocketTransport(self.loop, self.sock, self.protocol.data, self.closed)
+        self.protocol.make_connection(self.transport)
+        self.transport.start()
+
+    def closed(self, reason):
+        """Callback performed when the transport is closed."""
+        self.server.remove_connection(self)
+        self.protocol.connection_lost(reason)
+        if not isinstace(reason, ConnectionClosed):
+            self.logger.warn("connection closed, reason: %s" % str(reason))
+        else:
+            eslf.logger.info("connection closed")
+
+    def close(self):
+        """Close the connection."""
+        self.transport.close()
+
+
+class ShutdownError(Exception):
+    """Error signifying the server has already been shutdown and cannot be
+    used further."""
+
+class SocketServer(object):
+    """A socket server."""
+    def __init__(self, loop, factory, sock, closed_fun, logger):
+        """Socket server listens on a given socket for incoming connections.
+        When a new connection is available it accepts it and creates a new
+        Connection and Protocol to handle reading and writting data.
+
+        loop -- pyev loop
+        factory -- protocol factory (object with build(loop) method that returns a protocol object)
+        sock -- socket to listen on
+        closed_fun -- function called when the server's socket has been closed
+        logger -- logging.log object used to log server events, most of which are info()
+
+        """
+        self.loop = loop
+        self.factory = factory
+        self.sock = sock
+        self.closed_fun = closed_fun
+        self.connections = set()
+        self._closing = False
+        self._shutdown = False
+        self.interrupt_watcher = pyev.Signal(signal.SIGINT, self.loop, self._interrupt)
+        self.interrupt_watcher.start()
+        self.read_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._readable)
 
     def start(self):
-        """Start a server connection, this in turn starts the transport and read watcher."""
-        transport = Transport(self.loop, self.sock, self.sock_watcher)
-        self.protocol.connection_ready(transport)
-
+        """Start the socket server.
        
+        The socket server will begin accepting incoming connections.
+        
+        """
+        if self._shutdown:
+            raise ShutdownError()
 
-class SocketServer(SocketConnection):
-    """A socket server."""
+        self.read_watcher.start()
+        self.logger.info("server started")
 
-    def __init__(self, loop, factory, sock):
-        SocketConnection.__init__(self, loop, sock)
-        self.factory = factory
+    def stop(self):
+        """Stop the socket server.
+        
+        The socket server will stop accepting incoming connections.
+
+        The connections already made will continue to exist.
+
+        """
+        if self._shutdown:
+            raise ShutdownError()
+        self.read_watcher.stop()
+        self.logger.info("server stopped")
+
+    def shutdown(self, reason = ConnectionClosed()):
+        """Shutdown the socket server.
+
+        The socket server will stop accepting incoming connections.
+
+        All connections will be dropped.
+
+        """
+        if self._shutdown:
+            raise ShutdownError()
+        
+        self.stop()
+       
+        self._closing = True
+        for connection in self.connections:
+            connection.close()
         self.connections = set()
-        self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop, self._interrupt)
-        self.sigint_watcher.start()
-        self.closing = False
+        self._shutdown = True
+        self.closed_fun(reason)
+        self.logger.info("server shutdown")
 
     def _interrupt(self, watcher, events):
-        """Handle sigint."""
-        self.close()
+        """Handle the interrupt signal sanely."""
+        self.shutdown()
 
-    def _do_read(self, watcher, events):
-        """Overload the do_read method because recv 
-        is not a valid method on a listening socket.
-        """
-        self.read([])
-    
-    def read(self, data):
-        """When a socket being listened on is readable it simply means
-        a new connection is waiting to be accepted, so accept it.
-
-        This means creating a protocol using the given factory and a 
-        connection object that holds on to and uses the protocol.
+    def _readable(self, watcher, events):
+        """Called by the pyev watcher (self.read_watcher) whenever the socket
+        is readable.
+   
+        This means either the socket has been closed or there is a new
+        client connection waiting.
 
         """
         protocol = self.factory.build()
         try:
             sock, addr = self.sock.accept()
-            connection = ServerConnection(self.loop, sock, protocol, self)
+            connection = Connection(self.loop, sock, protocol, self, self.logger)
             protocol.make_connection(connection)
             self.connections.add(connection)
+            self.logger.info("added connection")
         except IOError as e:
-            protocol = None
-            self._do_error(e)
-            
-    def error(self, error):
-        """The socket we're listening to had an error, so kill all the clients and clean up."""
-        self.closing = True
-        for connection in self.connections:
-            connection.close()
-        self.connections = set()
+            self.shutdown(e)
 
-    def close(self):
-        self.closing = True
-        SocketConnection.close(self)
-        for connection in self.connections:
-            connection.close()
-        self.connections = set()
-
-    def connection_error(self, connection, error):
-        """Handle an error on one of the client connections gracefully."""
-        connection.server = None
-        self.connections.remove(connection)
-
-    def connection_lost(self, connection):
-        """Handle a connection lost on one of the client connections gracefully."""
-        print("losing connection")
-        connection.server = None
-        if not self.closing:
+    def remove_connection(self, connection):
+        """Called by the connections themselves when they have been closed."""
+        if not self._closing:
             self.connections.remove(connection)
+            self.logger.info("removed connection")
 
 class UnixServer(SocketServer):
     """A unix server is a socket server that listens on a domain socket."""
-    def __init__(self, loop, factory, path, conn_limit=5):
+    def __init__(self, loop, factory, closed_fun, logger, path, conn_limit=5):
         self.path = path
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.bind(path)
         self.sock.listen(conn_limit)
-        SocketServer.__init__(self, loop, factory, self.sock)
+        self.sock.set_blocking(False)
+        SocketServer.__init__(self, loop, factory, self.sock, closed_fun, logger)
 
-    def close(self):
+    def shutdown(self):
+        """Shutdown the socket unix socket server ensuring the unix socket is
+        removed.
+        
+        """
         err = None
         try:
-            SocketServer.close(self)
+            SocketServer.shutdown(self)
         except Exception as e:
             err = e
         finally:
@@ -133,8 +184,9 @@ class UnixServer(SocketServer):
 
 class TcpServer(SocketServer):
     """A tcp server is a socket server that listens on a internet socket."""
-    def __init__(self, loop, factory, host, port, conn_limit=5):
+    def __init__(self, loop, factory, closed_fun, logger, host, port, conn_limit=5):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((host, port))
         self.sock.listen(conn_limit)
-        SocketServer.__init__(self, loop, factory, self.sock)
+        self.sock.set_blocking(False)
+        SocketServer.__init__(self, loop, factory, self.sock, closed_fun, logger)
