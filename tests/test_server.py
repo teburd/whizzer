@@ -41,24 +41,12 @@ class FakeProtocol(protocol.Protocol):
         self.losses = 0
         self.connected = False
         self.transport = None
-
-    def make_connection(self, transport):
-        """Called by the factory when the connection has been made.
-
-        Most likely called right after the server call accept()
-
-        """
-        self.connected = True
-        self.transport = transport
-        self.connection_made()
-
-    def lose_connection(self):
-        """Closes the transport cleanly and informs the server that this connection has been closed."""
-        self.transport.close()
-        self.connected = False
+        self.data = []
+        self.reason = None
 
     def data(self, d):
         self.reads += 1
+        self.data = d
         print("reads " + str(self.reads))
 
     def connection_made(self):
@@ -67,8 +55,8 @@ class FakeProtocol(protocol.Protocol):
 
     def connection_lost(self, reason=None):
         self.losses += 1
+        self.reason = reason
         print("losses " + str(self.losses))
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -22,21 +22,25 @@
 import socket
 import pyev
 
+
 class ConnectionClosed(Exception):
     """Signifies the connection is no longer valid."""
+
 
 class BufferOverflowError(Exception):
     """Signifies something would cause a buffer overflow."""
 
+
 class SocketTransport(object):
     """A buffered writtable transport."""
-    def __init__(self, loop, sock, read_cb, close_cb, max_size = 1024*512):
-        """Creates a socket transport that will perform the given functions whenever
-        the socket is readable or has an error. Writting to the transport by default 
-        simply calls the send() function and checks for errors. If the error
-        happens to be that the socket is unavailable (its buffer is full) the write
-        is buffered until the max_size limit is reached writting out of the buffer
-        whenever the socket is writtable.
+
+    def __init__(self, loop, sock, read_cb, close_cb, max_size=1024 * 512):
+        """Creates a socket transport that will perform the given functions
+        whenever the socket is readable or has an error. Writting to the
+        transport by default simply calls the send() function and checks for
+        errors. If the error happens to be that the socket is unavailable
+        (its buffer is full) the write is buffered until the max_size limit is
+        reached writting out of the buffer whenever the socket is writtable.
 
         loop -- pyev loop
         sock -- python socket object
@@ -51,27 +55,28 @@ class SocketTransport(object):
         self.close_cb = close_cb
         self.max_size = max_size
         self.sock.setblocking(False)
-        self.read_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._readable)
-        self.write_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._writtable)
+        self.read_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop,
+                                   self._readable)
+        self.write_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop,
+                                     self._writtable)
         self.write_buffer = bytearray()
         self.closed = False
 
         self.write = self.unbuffered_write
-    
+
     def start(self):
         """Start watching the socket."""
         if self.closed:
             raise ConnectionClosed()
-        
+
         self.read_watcher.start()
         if self.write == self.buffered_write:
             self.write_watcher.start()
-    
+
     def stop(self):
         """Stop watching the socket."""
         if self.closed:
             raise ConnectionClosed()
-
 
         if self.read_watcher.active:
             self.read_watcher.stop()
@@ -90,9 +95,8 @@ class SocketTransport(object):
 
         """
 
-
     def unbuffered_write(self, buf):
-        """Performs an unbuffered write, the default unless socket.send does 
+        """Performs an unbuffered write, the default unless socket.send does
         not send everything, in which case an unbuffered write is done and the
         write method is set to be a buffered write until the buffer is empty
         once again.
@@ -135,7 +139,7 @@ class SocketTransport(object):
             raise BufferOverflowError()
         else:
             self.write_buffer.extend(buf)
-    
+
     def _writtable(self, watcher, events):
         """Called by the pyev watcher (self.write_watcher) whenever the socket
         is writtable.
@@ -176,7 +180,7 @@ class SocketTransport(object):
 
     def _close(self, e):
         """Really close the transport with a reason.
-        
+
         e -- reason the socket is being closed.
 
         """
@@ -188,4 +192,3 @@ class SocketTransport(object):
     def close(self):
         """Close the transport."""
         self._close(ConnectionClosed())
-        
