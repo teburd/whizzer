@@ -82,6 +82,18 @@ class TestSocketTransport(unittest.TestCase):
         t.close()
         self.assertRaises(ConnectionClosed, t.write, ("hello"))
 
+    def test_buffered_write(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        count = 0
+        msg = b'hello'
+        while(t.write != t.buffered_write):
+            count += 1
+            t.write(msg)
+        t.write(msg)
+        self.csock.recv(count*len(msg))
+        loop.loop(pyev.EVLOOP_NONBLOCK)
+        self.assertTrue(t.write == t.unbuffered_write)
+
     def test_overflow_write(self):
         t = SocketTransport(loop, self.ssock, self.read, self.close)
         self.assertRaises(BufferOverflowError, t.write, bytes([x for x in range(0, 1024*1024)]))
