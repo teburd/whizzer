@@ -1,16 +1,15 @@
-
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,19 +22,25 @@ import pyev
 import sys
 import signal
 
+
 class CancelledError(Exception):
     """CancelledError describes an error state for a future object."""
+
 
 class TimeoutError(Exception):
     """TimeoutError describes an error state for a future object."""
 
+
 class PerformedError(Exception):
     """PerformedError describes an error state for a future object."""
+
 
 class RuntimeError(Exception):
     """PerformedError describes an error state for a future object."""
 
+
 class Executor(object):
+
     def __init__(self, loop):
         self._loop = loop
         self._watchers = set()
@@ -47,7 +52,7 @@ class Executor(object):
 
         """
         return self._submit(0.0, 0.0, fn, args, kwargs)
-        
+
     def submit_delay(self, delay, fn, *args, **kwargs):
         """Perform a call in the future with a given delay in seconds.
 
@@ -58,7 +63,8 @@ class Executor(object):
 
     def _submit(self, delay, repeat_delay, fn, args, kwargs):
         future = Future(self._loop)
-        watcher = pyev.Timer(delay, repeat_delay, self._loop, self._perform, (future, fn, args, kwargs))
+        watcher = pyev.Timer(delay, repeat_delay, self._loop, self._perform,
+                             (future, fn, args, kwargs))
         watcher.start()
         self._watchers.add(watcher)
         return future
@@ -95,140 +101,19 @@ class Executor(object):
         """
 
     def shutdown(self, wait=True):
-        """Shutdown the executor, if wait=True then the call will block until all
-        submitted calls are completed.
+        """Shutdown the executor, if wait=True then the call will block until
+        all submitted calls are completed.
 
         submit_repeating calls will be stopped automatically when shutdown is
         called.
 
         """
 
-class Deferred(object):
-    """A generalized callback framework that takes a possible future result.
-    
-    Ex:
-
-    Chaining:
-    f = Future
-    d = Deferred(f).add_callback(print).add_callback(log).add_callback(close)
-
-    f.result() # print is called with the result, log is called with the result of print, close is called with the result of log
-
-    Branching:
-    f = Future()
-    d = Deferred(f)
-    d.add_callback(log)
-    d.add_callback(close)
-    f.result() # print is called with the result, log is called with the result
-    
-    Error handling:
-    f = Future()
-
-    d = Deferred(f)
-    d.add_errback(failme).add_callbacks(print, log)
-
-    f.exception() # failme is called with the exception as its only parameter, if failme raises log is called, if not print is called
-
-    """
-    def __init__(self, future):
-        self.future = future
-        self.future.add_done_callback(self._perform)
-        self._callbacks = []
-    
-    def _perform(self, f):
-        """Perform the required callbacks."""
-        print("performing")
-        r = None
-        e = None
-        err = False
-        try:
-            r = f.result()
-        except Exception as _e:
-            print("got exception " + str(e))
-            e = _e
-            err = True
-
-        if isinstance(r, Future):
-            self.future = r
-            self.future.add_done_callback(self._perform)
-        else:
-            if err:
-                self.errbacks(e)
-            else:
-                self.callbacks(r)
-    
-    def callbacks(self, result):
-        """Perform the callbacks added to this deferred."""
-        print("callbacks")
-        for (f, d, fn, fn_args, fn_kwargs, errfn, efn_args, efn_kwargs) in self._callbacks:
-
-            print("    " + fn.__name__)
-            r = None
-            e = None
-            err = False
-        
-            # do this seperatly to avoid propogating
-            # errors in the deferred or future objects
-            try:
-                r = fn(result, *fn_args, **fn_kwargs)
-            except Exception as _e:
-                print("got exception " + str(_e))
-                e = _e
-                err = True
-
-            if err:
-                f.set_exception(e)
-            else:
-                f.set_result(r)
-    
-    def errbacks(self, result):
-        """Perform the errbacks added to this deferred."""
-        print("errbacks")
-        for (f, d, fn, fn_args, fn_kwargs, errfn, efn_args, efn_kwargs) in self._callbacks:
-            print("    " + errfn.__name__)
-            r = None
-            e = None
-            err = False
-        
-            # do this seperately to avoid propogating
-            # errors in the deferred or future objects
-            try:
-                r = errfn(result, *efn_args, **efn_kwargs)
-            except Exception as _e:
-                print("got exception " + str(_e))
-                e = _e
-                err = True
-
-            if err:
-                f.set_exception(e)
-            else:
-                f.set_result(r)
-
-    def add_callback(self, fn, *args, **kwargs):
-        """Add a callback and return a deferred."""
-        f = Future(self.future._loop)
-        d = Deferred(f)
-        self._callbacks.append((f, d, fn, args, kwargs, None, None, None))
-        return d
-
-    def add_errback(self, fn, *args, **kwargs):
-        """Add a errback."""
-        f = Future(self.future._loop)
-        d = Deferred(f)
-        self._callbacks.append((f, d, None, None, None, fn, args, kwargs))
-        return d
-
-    def add_callbacks(self, fn, errfn, *args, **kwargs):
-        """Same as doing add_callback and add_errback but in one call."""
-        f = Future(self.future._loop)
-        d = Deferred(f)
-        self._callbacks.append((f, d, fn, args, kwargs, errfn, args, kwargs))
-        return d
 
 class Future(object):
     """Future represents a future result. This is the return of an asynchronous
     call as the result is not known yet!
-    
+
     Taken from the PEP3148, part of python 3.2 but not part of python 2.6 or
     python 3.1.
 
@@ -244,22 +129,26 @@ class Future(object):
         self._exception = None
         self._wait = False
         self._timer = None
-        self.sigint_watcher = pyev.Signal(signal.SIGINT, self._loop, self._interrupt)
+        self.sigint_watcher = pyev.Signal(signal.SIGINT, self._loop,
+                                          self._interrupt)
         self.sigint_watcher.start()
 
     def _interrupt(self, watcher, events):
-        """A signal may be caught while waiting for something, if so, its assumed the future is cancelled."""
+        """A signal may be caught while waiting for something, if so, its
+        assumed the future is cancelled.
+
+        """
         if not self._done and self._wait:
             self._cancelled = True
             self._wait = False
         else:
             self.cancel()
-        
+
     def cancel(self):
         """Cancel the future results.
-        
-        Attempt to cancel the call. If the call is currently being executed 
-        then it cannot be cancelled and the method will return False, 
+
+        Attempt to cancel the call. If the call is currently being executed
+        then it cannot be cancelled and the method will return False,
         otherwise the call will be cancelled and the method will return True.
 
         """
@@ -275,11 +164,17 @@ class Future(object):
         return self._cancelled
 
     def running(self):
-        """Return True if the call is currently being executed and cannot be cancelled."""
+        """Return True if the call is currently being executed and cannot be
+        cancelled.
+
+        """
         return self._running
 
     def done(self):
-        """Return True if the call was successfully cancelled or finished running."""
+        """Return True if the call was successfully cancelled or finished
+        running.
+
+        """
         return (self._cancelled or self._done)
 
     def add_done_callback(self, fn):
@@ -315,7 +210,7 @@ class Future(object):
 
         This method can only be called once and cannot be called after
         Future.set_result() or Future.set_exception() have been called.
-        
+
         """
         assert(not self._running and not self._done)
 
@@ -333,7 +228,7 @@ class Future(object):
     def set_exception(self, exception):
         """Sets the result of the work associated with the Future to the given
         Exception.
-        
+
         """
         self._exception = exception
         self.set_done()
@@ -347,8 +242,9 @@ class Future(object):
     def _perform_callbacks(self):
         for callback in self._done_callbacks:
             callback(self)
-        self._done_callbacks = [] # clear the references
-   
+
+        self._done_callbacks = []  # clear the references
+
     def _clear_wait(self, watcher, events):
         self._wait = False
 
@@ -358,30 +254,31 @@ class Future(object):
         Raises TimeoutError if the wait times out before the future is done.
         Raises CancelledError if the future is cancelled before the
         timeout is done.
-        
+
         """
 
         if self._cancelled:
             raise CancelledError()
 
-        if not self._done: 
+        if not self._done:
             self._wait = True
-    
-            if timeout and timeout > 0.0: 
-                self._timer = pyev.Timer(timeout, 0.0, self._loop, self._clear_wait, None)
+
+            if timeout and timeout > 0.0:
+                self._timer = pyev.Timer(timeout, 0.0, self._loop,
+                                         self._clear_wait, None)
                 self._timer.start()
 
             while self._wait and not self._done and not self._cancelled:
                 self._loop.loop(pyev.EVLOOP_ONESHOT)
-          
+
         if self._cancelled:
             raise CancelledError()
         elif not self._done:
             raise TimeoutError()
 
     def result(self, timeout=None):
-        """Return the value returned by the call. 
-        
+        """Return the value returned by the call.
+
         If the call hasn't yet completed then this method will wait up to
         timeout seconds. If the call hasn't completed in timeout seconds then a
         TimeoutError will be raised. If timeout is not specified or None then
@@ -400,10 +297,9 @@ class Future(object):
         else:
             return self._result
 
-    
     def exception(self, timeout=None):
-        """Return the exception raised by the call. 
-        
+        """Return the exception raised by the call.
+
         If the call hasn't yet completed then this method will wait up to
         timeout seconds. If the call hasn't completed in timeout seconds then a
         TimeoutError will be raised. If timeout is not specified or None then
@@ -413,10 +309,8 @@ class Future(object):
         be raised.
 
         If the call completed without raising then None is returned.
-        
+
         """
         self._do_wait(timeout)
 
         return self._exception
-
-
