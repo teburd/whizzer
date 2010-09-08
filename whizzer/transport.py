@@ -111,14 +111,11 @@ class SocketTransport(object):
         result = 0
         try:
             result = self.sock.send(buf)
-        except IOError as e:
+        except EnvironmentError as e:
             # if the socket is simply backed up ignore the error 
             if e.errno != errno.EAGAIN: 
                 self._close(e)
                 return
-        except OSError as e:
-            self._close(e)
-            return
 
         # when the socket buffers are full/backed up then we need to poll to see
         # when we can write again
@@ -159,9 +156,7 @@ class SocketTransport(object):
             if len(self.write_buffer) == 0:
                 self.write_watcher.stop()
                 self.write = self.unbuffered_write
-        except IOError as e:
-            self._close(e)
-        except OSError as e:
+        except EnvironmentError as e:
             self._close(e)
 
     def _readable(self, watcher, events):
