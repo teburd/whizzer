@@ -83,7 +83,7 @@ class Deferred(object):
             else:
                 self.logger.debug(str(e))
 
-         def add_callback(self, callback, *args, **kwargs):
+    def add_callback(self, callback, *args, **kwargs):
         """Add a callback and return a deferred."""
         if self._called:
             raise AlreadyCalledError()

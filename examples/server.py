@@ -45,6 +45,7 @@ def close(reason):
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
+    
     logger = logging.getLogger('echo_server')
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)

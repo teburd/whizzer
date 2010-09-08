@@ -20,8 +20,8 @@
 # THE SOFTWARE.
 
 import sys
-import pstats
-import cProfile
+import signal
+import logging
 import pyev
 
 sys.path.insert(0, '..')
@@ -30,8 +30,8 @@ from whizzer.protocol import Protocol, ProtocolFactory
 from whizzer.client import TcpClient
 
 class EchoClientProtocol(Protocol):
-    def __init__(self, loop, factory):
-        whizzer.Protocol.__init__(self, loop)
+    def __init__(self, loop):
+        Protocol.__init__(self, loop)
         self.factory = factory
 
     def connection_made(self):
@@ -42,33 +42,22 @@ class EchoClientProtocol(Protocol):
         #print("echo'd " + data)
         self.lose_connection()
 
-    def connection_lost(self, reason=None):
-        self.factory.lost_connection(self)
-        self.factory = None
-
-class ClientFactory(whizzer.ProtocolFactory):
-    def __init__(self, loop):
-        whizzer.ProtocolFactory.__init__(self, loop)
-        self.protocol = EchoClientProtocol
-        self.protocols = set()
-        self.timer = pyev.Timer(1.0, 0.001, loop, self.connect)
-        self.timer.start()
-
-    def connect(self, watcher, events):
-        client = whizzer.TcpClient(self.loop, self, "127.0.0.1", 2000)
-        client.connect()
-
-    def build(self):
-        protocol = self.protocol(self.loop, self)
-        self.protocols.add(protocol)
-        return protocol
-
-    def lost_connection(self, protocol):
-        self.protocols.remove(protocol)
+def interrupt(watcher, events):
+    watcher.loop.unloop()
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
-    sighandler = whizzer.SignalHandler(loop)
-    cf = ClientFactory(loop)
-    cProfile.run('loop.loop()', 'client_profile')
-    pstats.Stats('client_profile').sort_stats('time').print_stats()
+
+    logger = logging.getLogger('echo_client')
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+
+    signal_watcher = pyev.Signal(signal.SIGINT, loop, interrupt)
+    signal_watcher.start()
+
+    factory = ProtocolFactory()
+    factory.protocol = EchoClientProtocol
+
+    client = TcpClient(loop, factory, logger, "127.0.0.1", 2000)
+
+    loop.loop()

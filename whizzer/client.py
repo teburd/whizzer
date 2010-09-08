@@ -22,124 +22,83 @@
 import socket
 import signal
 import pyev
-from .transport import SocketTransport
+from .transport import SocketTransport, ConnectionClosed
 from .deferred import Deferred
 
 class Connection(object):
     """Represents a connection to a server from a client. A SocketConnection template
     implementation.
     """
-    def __init__(self, loop, sock, protocol, client):
-        SocketConnection.__init__(self, loop, sock)
-        self.client = client 
+    def __init__(self, loop, sock, protocol, client, logger):
+        """Create a client connection."""
+        self.loop = loop
+        self.sock = sock
         self.protocol = protocol
-        self.connect_future = None
-        self.connect_watcher = None
+        self.client = client 
+        self.logger = logger
+        self.transport = SocketTransport(self.loop, self.sock, self.protocol.data, self.closed)
+        self.protocol.make_connection(self.transport)
 
-    def read(self, data):
-        """Pass along the data from the real connection to the protocol."""
-        self.protocol.data(data)
+    def closed(self, reason):
+        """Callback performed when the transport is closed."""
+        self.client.remove_connection(self)
+        self.protocol.connection_lost(reason)
+        if not isinstance(reason, ConnectionClosed):
+            self.logger.warn("connection closed, reason %s" % str(reason))
+        else:
+            self.logger.info("connection closed")
 
-    def error(self, error):
-        """There as an error, so clear any circular references and
-        tell the protocol.
-        
-        """
-        self.protocol.connection_lost(error)
-        self.protocol.transport = None
-        self.client.connection_lost(error)
-        
     def close(self):
-        """Close a client connection and clear circular references.
-        
-        This should not be called by a protocol. This should be called
-        by the server holding on to this connection.
-        
-        """
-        SocketConnection.close(self)
-        self.protocol.connection_lost()
-        self.protocol.transport = None
-        self.client.connection_lost()
+        """Close the connection."""
+        self.transport.close()
 
 class SocketClient(object):
     """A simple socket client."""
-    def __init__(self, loop, factory):
+    def __init__(self, loop, factory, logger):
         self.loop = loop
         self.factory = factory
+        self.logger = logger
         self.connection = None
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop, self._interrupt)
         self.sigint_watcher.start()
 
     def _interrupt(self, watcher, events):
-        self.shutdown()
+        self.connection.close()
 
     def _connect(self, sock):
         """Start watching the socket for it to be writtable."""
-        self.connect_watcher = pyev.Io(sock, pyev.EV_WRITE, self.loop, self._do_connect, sock)
-        self.connect_watcher.start()
-        self.connect_future = Future(self.loop)
-        return self.connect_future
-
-    def _do_connect(self, watcher, events):
-        """Once the socket is writtable, its connected."""
-        sock = watcher.data
-        protocol = self.factory.build()
-        self.connection = ClientConnection(self.loop, sock, protocol, self)
-        protocol.make_connection(self.connection)
-        self.connect_watcher.stop()
-        self.connect_watcher = None
-        self.connect_future.set_result(True)
-  
+        protocol = self.factory.build(self.loop)
+        self.connection = Connection(self.loop, sock, protocol, self, self.logger)
+ 
     def connect(self):
         """Should be overridden to create a socket and connect it.
         
         Once the socket is connected it should be passed to _connect.
 
         """
-        pass
+    
+    def remove_connection(self, connection):
+        self.connection = None
 
-    def connection_lost(self, reason=None):
-        """A stub to deal with lost connections. Reconnect, log, die, do
-        whatever makes sense for each case here.
-
-        This gets called when you call close.
-        
-        """
-        if self.connection:
-            self.connection.client = None
-            self.connection = None
-
-    def close(self):
-        """Close the client connection."""
-        if self.connect_watcher:
-            self.connect_watcher.stop()
-            self.connect_watcher = None
-        if self.connection:
-            self.connection.close()
-
+       
 class UnixClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, path):
-        SocketClient.__init__(self, loop, factory)
+    def __init__(self, loop, factory, logger, path):
+        SocketClient.__init__(self, loop, factory, logger)
         self.path = path
-
-    def connect(self):
-        """Create and connect to the socket."""
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.setblocking(False)
         sock.connect(self.path)
-        return self._connect(sock)
+        self.logger.info("connected")
+        self._connect(sock)
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, host, port):
-        SocketClient.__init__(self, loop, factory)
+    def __init__(self, loop, factory, logger, host, port):
+        SocketClient.__init__(self, loop, factory, logger)
         self.host = host
         self.port = port
-
-    def connect(self):
-        """Create and connect to the socket."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self.host, self.port))
-        return self._connect(sock)
+        self.logger.info("connected")
+        self._connect(sock)
 
