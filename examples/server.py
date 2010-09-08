@@ -34,7 +34,7 @@ import whizzer
 
 class EchoProtocol(whizzer.Protocol):
     def data(self, data):
-        print "got data, returning it"
+        print("got data, returning it")
         self.transport.write(data)
 
 if __name__ == "__main__":

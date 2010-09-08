@@ -35,7 +35,7 @@ class EchoClientProtocol(whizzer.Protocol):
         self.transport.write(b'Echo Me')
         
     def data(self, data):
-        print("echo'd " + data)
+        print("echo'd " + data.decode('ASCII'))
         self.lose_connection()
 
 def interrupt(watcher, events):
