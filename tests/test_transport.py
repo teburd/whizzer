@@ -82,6 +82,49 @@ class TestSocketTransport(unittest.TestCase):
         t.close()
         self.assertRaises(ConnectionClosed, t.write, ("hello"))
 
+    def test_closed_start(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        t.close()
+        self.assertRaises(ConnectionClosed, t.start)
+
+    def test_closed_stop(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        t.close()
+        self.assertRaises(ConnectionClosed, t.stop)
+
+    def test_stop(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        t.stop()
+
+    def test_stop(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        t.stop()
+
+    def test_stop_buffered_write(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        count = 0
+        msg = b'hello'
+        while(t.write != t.buffered_write):
+            count += 1
+            t.write(msg)
+        t.write(msg)
+        t.stop()
+        self.csock.recv(count*len(msg))
+        t.start()
+        loop.loop(pyev.EVLOOP_NONBLOCK)
+        self.assertTrue(t.write == t.unbuffered_write)
+
+    def test_close_buffered_write(self):
+        t = SocketTransport(loop, self.ssock, self.read, self.close)
+        count = 0
+        msg = b'hello'
+        while(t.write != t.buffered_write):
+            count += 1
+            t.write(msg)
+        t.write(msg)
+        t.close()
+        self.assertRaises(ConnectionClosed, t.write, msg)
+
     def test_buffered_write(self):
         t = SocketTransport(loop, self.ssock, self.read, self.close)
         count = 0

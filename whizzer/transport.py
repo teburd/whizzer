@@ -20,6 +20,7 @@
 # THE SOFTWARE.
 
 import socket
+import errno
 import pyev
 
 
@@ -111,13 +112,16 @@ class SocketTransport(object):
         try:
             result = self.sock.send(buf)
         except IOError as e:
-            if e.errno != 11:
+            # if the socket is simply backed up ignore the error 
+            if e.errno != errno.EAGAIN: 
                 self._close(e)
                 return
         except OSError as e:
             self._close(e)
             return
 
+        # when the socket buffers are full/backed up then we need to poll to see
+        # when we can write again
         if result != len(buf):
             self.write = self.buffered_write
             self.write_watcher.start()
