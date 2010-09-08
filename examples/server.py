@@ -34,7 +34,8 @@ import whizzer
 
 class EchoProtocol(whizzer.Protocol):
     def data(self, data):
-       self.transport.write(data)
+        print "got data, returning it"
+        self.transport.write(data)
 
 if __name__ == "__main__":
     loop = pyev.default_loop()

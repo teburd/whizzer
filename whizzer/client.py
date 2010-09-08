@@ -40,6 +40,7 @@ class Connection(object):
         self.transport = SocketTransport(self.loop, self.sock,
                                          self.protocol.data, self.closed)
         self.protocol.make_connection(self.transport)
+        self.transport.start()
 
     def closed(self, reason):
         """Callback performed when the transport is closed."""
@@ -67,7 +68,8 @@ class SocketClient(object):
         self.sigint_watcher.start()
 
     def _interrupt(self, watcher, events):
-        self.connection.close()
+        if self.connection:
+            self.connection.close()
 
     def _connect(self, sock):
         """Start watching the socket for it to be writtable."""

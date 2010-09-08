@@ -28,16 +28,20 @@ class Protocol(object):
         """Called externally when the transport is ready."""
         self.connected = True
         self.transport = transport
-        self.connection_ready()
+        self.connection_made()
 
-    def connection_ready(self):
+    def connection_made(self):
         """Called when the connection is ready to use."""
 
     def connection_lost(self, reason):
         """Called when the connection has been lost."""
 
-    def read(self, data):
+    def data(self, data):
         """Handle an incoming stream of data."""
+
+    def lose_connection(self):
+        print("losing connection.")
+        self.transport.close()
 
 class ProtocolFactory(object):
     """Protocol factory."""

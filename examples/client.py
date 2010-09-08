@@ -26,20 +26,16 @@ import pyev
 
 sys.path.insert(0, '..')
 
-from whizzer.protocol import Protocol, ProtocolFactory
-from whizzer.client import TcpClient
+import whizzer
 
-class EchoClientProtocol(Protocol):
-    def __init__(self, loop):
-        Protocol.__init__(self, loop)
-        self.factory = factory
-
+class EchoClientProtocol(whizzer.Protocol):
     def connection_made(self):
         """When the connection is made, send something."""
+        print("connection made")
         self.transport.write(b'Echo Me')
         
     def data(self, data):
-        #print("echo'd " + data)
+        print("echo'd " + data)
         self.lose_connection()
 
 def interrupt(watcher, events):
@@ -52,13 +48,12 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
-    signal_watcher = pyev.Signal(signal.SIGINT, loop, interrupt)
-    signal_watcher.start()
+    signal_handler = whizzer.SignalHandler(loop)
 
-    factory = ProtocolFactory()
+    factory = whizzer.ProtocolFactory()
     factory.protocol = EchoClientProtocol
 
-    client = TcpClient(loop, factory, logger, "127.0.0.1", 2000)
+    client = whizzer.TcpClient(loop, factory, "127.0.0.1", 2000, logger=logger)
     client.connect()
 
     loop.loop()
