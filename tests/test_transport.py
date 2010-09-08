@@ -139,7 +139,7 @@ class TestSocketTransport(unittest.TestCase):
 
     def test_overflow_write(self):
         t = SocketTransport(loop, self.ssock, self.read, self.close)
-        self.assertRaises(BufferOverflowError, t.write, bytes([x for x in range(0, 1024*1024)]))
+        self.assertRaises(BufferOverflowError, t.write, bytes([1 for x in range(0, 1024*1024)]))
 
     def test_read(self):
         t = SocketTransport(loop, self.ssock, self.read, self.close)
