@@ -40,9 +40,6 @@ class EchoProtocol(Protocol):
 def interrupt(watcher, events):
     watcher.loop.unloop()
 
-def close(reason):
-    pass
-
 if __name__ == "__main__":
     loop = pyev.default_loop()
     
@@ -56,7 +53,7 @@ if __name__ == "__main__":
     factory = ProtocolFactory()
     factory.protocol = EchoProtocol
 
-    server = TcpServer(loop, factory, close, logger, "127.0.0.1", 2000)
+    server = TcpServer(loop, factory, "127.0.0.1", 2000, logger=logger)
     server.start()
     
     loop.loop()

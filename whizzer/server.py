@@ -22,6 +22,7 @@
 import os
 import signal
 import socket
+import logging
 
 import pyev
 
@@ -60,7 +61,7 @@ class ShutdownError(Exception):
 
 class SocketServer(object):
     """A socket server."""
-    def __init__(self, loop, factory, sock, closed_cb, logger):
+    def __init__(self, loop, factory, sock, logger=logging):
         """Socket server listens on a given socket for incoming connections.
         When a new connection is available it accepts it and creates a new
         Connection and Protocol to handle reading and writting data.
@@ -68,14 +69,12 @@ class SocketServer(object):
         loop -- pyev loop
         factory -- protocol factory (object with build(loop) method that returns a protocol object)
         sock -- socket to listen on
-        closed_cb -- function called when the server's socket has been closed
         logger -- logging.log object used to log server events, most of which are info()
 
         """
         self.loop = loop
         self.factory = factory
         self.sock = sock
-        self.closed_cb = closed_cb
         self.logger = logger
         self.connections = set()
         self._closing = False
@@ -127,8 +126,10 @@ class SocketServer(object):
             connection.close()
         self.connections = set()
         self._shutdown = True
-        self.closed_cb(reason)
-        self.logger.info("server shutdown")
+        if isinstance(reason, ConnectionClosed):
+            self.logger.info("server shutdown")
+        else:
+            self.logger.warn("server shutdown, reason %s" % str(reason))
 
     def _interrupt(self, watcher, events):
         """Handle the interrupt signal sanely."""
@@ -159,13 +160,13 @@ class SocketServer(object):
 
 class UnixServer(SocketServer):
     """A unix server is a socket server that listens on a domain socket."""
-    def __init__(self, loop, factory, closed_cb, logger, path, conn_limit=5):
+    def __init__(self, loop, factory, path, conn_limit=5, logger=logging):
         self.path = path
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.bind(path)
         self.sock.listen(conn_limit)
         self.sock.setblocking(False)
-        SocketServer.__init__(self, loop, factory, self.sock, closed_cb, logger)
+        SocketServer.__init__(self, loop, factory, self.sock, logger)
 
     def shutdown(self):
         """Shutdown the socket unix socket server ensuring the unix socket is
@@ -184,9 +185,9 @@ class UnixServer(SocketServer):
 
 class TcpServer(SocketServer):
     """A tcp server is a socket server that listens on a internet socket."""
-    def __init__(self, loop, factory, closed_cb, logger, host, port, conn_limit=5):
+    def __init__(self, loop, factory, host, port, conn_limit=5, logger=logging):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((host, port))
         self.sock.listen(conn_limit)
         self.sock.setblocking(False)
-        SocketServer.__init__(self, loop, factory, self.sock, closed_cb, logger)
+        SocketServer.__init__(self, loop, factory, self.sock, logger)
