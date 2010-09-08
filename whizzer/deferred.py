@@ -8,13 +8,13 @@ class Deferred(object):
     
     Ex:
 
-    Chaining:
+    Chaining Callbacks:
     d = Deferred()
     d.add_callback(print).add_callback(log).add_callback(close)
 
-    d.callbacks("Hello") # print is called with the result, log is called with the result of print, close is called with the result of log
+    d.callback("Hello") # print is called with the result, log is called with the result of print, close is called with the result of log
 
-    Branching:
+    Fan out callbacks:
     d = Deferred()
     d.add_callback(log)
     d.add_callback(close)
@@ -24,22 +24,22 @@ class Deferred(object):
     d = Deferred()
     d.add_errback(failme).add_callbacks(print, log)
 
-    f.exception() # failme is called with the exception as its only parameter, if failme raises log is called, if not print is called
+    d.errback(Exception()) # failme is called with the exception as its only parameter, if failme raises log is called, if not print is called
 
     """
     def __init__(self, logger=None):
         if logger:
             self.logger = logger
         else:
-            logger = logging.getLogger('deferred')
-            logger.addHandler(logging.StreamHandler())
-            logger.setLevel(logging.DEBUG)
+            self.logger = logging.getLogger('deferred')
+            self.logger.addHandler(logging.StreamHandler())
+            self.logger.setLevel(logging.DEBUG)
 
         self._called = False
         self._callbacks = []
         self._errbacks = []
    
-    def callback(self, result):
+    def callback(self, result=None):
         """Perform the callbacks added to this deferred."""
         if self._called:
             raise AlreadyCalledError()
@@ -50,21 +50,27 @@ class Deferred(object):
             err = False
         
             try:
-                r = cb(result, *cb_args, **cb_kwargs)
+                if result:
+                    r = cb(result, *cb_args, **cb_kwargs)
+                else:
+                    r = cb(*cb_args, **cb_kwargs)
             except Exception as _e:
                 e = _e
                 err = True
 
             if err:
-                d.errbacks(e)
+                d.errback(e)
             else:
-                d.callbacks(r)
+                d.callback(r)
     
     def errback(self, result):
         """Perform the errbacks added to this deferred."""
         if self._called:
             raise AlreadyCalledError()
 
+        if len(self._errbacks) == 0:
+            self.logger.error(str(result))
+            
         for (d, cb, cb_args, cb_kwargs) in self._errbacks:
             r = None
             e = None
@@ -76,19 +82,20 @@ class Deferred(object):
                 except Exception as _e:
                     e = _e
                     err = True
+
                 if err:
-                    d.errbacks(e)
+                    d.errback(e)
                 else:
-                    d.callbacks(r)
+                    d.callback(r)
             else:
-                self.logger.debug(str(e))
+                self.logger.error(str(e))
 
     def add_callback(self, callback, *args, **kwargs):
         """Add a callback and return a deferred."""
         if self._called:
             raise AlreadyCalledError()
 
-        d = Deferred()
+        d = Deferred(self.logger)
         self._callbacks.append((d, callback, args, kwargs))
         return d
 
@@ -97,7 +104,7 @@ class Deferred(object):
         if self._called:
             raise AlreadyCalledError()
 
-        d = Deferred()
+        d = Deferred(self.logger)
         self._errbacks.append((d, errback, args))
         return d
 
@@ -107,7 +114,7 @@ class Deferred(object):
             raise AlreadyCalledError()
 
         f = Future(self.future._loop)
-        d = Deferred()
+        d = Deferred(self.logger)
         self._callbacks.append((d, callback, cb_args, cb_kwargs))
         self._errbacks.append((d, errback, eb_args, eb_kwargs))
         return d

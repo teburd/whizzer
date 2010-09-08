@@ -109,45 +109,5 @@ class TestFuture(unittest.TestCase):
         assert(self.cb_count == 1)
         assert(f in self.cb_futures)
 
-
-def add(a, b):
-    return a+b
-
-def multiply(a, b):
-    return a*b
-
-def divide(a, b):
-    return a/b
-
-class TestDeferred(unittest.TestCase):
-    def setUp(self):
-        self.future = futures.Future(loop)
-        self.deferred = futures.Deferred(self.future)
-        self.result = None
-
-    def tearDown(self):
-        self.future = None
-        self.deferred = None
-
-    def set_result(self, result):
-        self.result = result
-
-    def set_exception(self, exception):
-        self.exception = exception
-
-    def test_callback(self):
-        self.deferred.add_callback(self.set_result)
-        self.future.set_result(5)
-        self.assertTrue(self.result==5)
-
-    def test_callback_chain(self):
-        d = self.deferred.add_callback(add, 1)
-        d.add_callback(self.set_result)
-        self.future.set_result(5)
-        self.assertTrue(self.result==6)
-
-
-
-
 if __name__ == '__main__':
     unittest.main()
