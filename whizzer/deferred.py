@@ -1,5 +1,6 @@
+import logging
 
-class CalledError(Exception):
+class AlreadyCalledError(Exception):
     """Error signifying the deferred has already been called."""
 
 class Deferred(object):
@@ -26,15 +27,22 @@ class Deferred(object):
     f.exception() # failme is called with the exception as its only parameter, if failme raises log is called, if not print is called
 
     """
-    def __init__(self):
+    def __init__(self, logger=None):
+        if logger:
+            self.logger = logger
+        else:
+            logger = logging.getLogger('deferred')
+            logger.addHandler(logging.StreamHandler())
+            logger.setLevel(logging.DEBUG)
+
         self._called = False
         self._callbacks = []
         self._errbacks = []
    
-    def callbacks(self, result):
+    def callback(self, result):
         """Perform the callbacks added to this deferred."""
         if self._called:
-            raise CalledError()
+            raise AlreadyCalledError()
 
         for (d, cb, cb_args, cb_kwargs) in self._callbacks:
             r = None
@@ -52,31 +60,33 @@ class Deferred(object):
             else:
                 d.callbacks(r)
     
-    def errbacks(self, result):
+    def errback(self, result):
         """Perform the errbacks added to this deferred."""
         if self._called:
-            raise CalledError()
+            raise AlreadyCalledError()
 
         for (d, cb, cb_args, cb_kwargs) in self._errbacks:
             r = None
             e = None
             err = False
-        
-            try:
-                r = cb(result, *cb_args, **cb_kwargs)
-            except Exception as _e:
-                e = _e
-                err = True
 
-            if err:
-                d.errbacks(e)
+            if cb:
+                try:
+                    r = cb(result, *cb_args, **cb_kwargs)
+                except Exception as _e:
+                    e = _e
+                    err = True
+                if err:
+                    d.errbacks(e)
+                else:
+                    d.callbacks(r)
             else:
-                d.callbacks(r)
- 
-    def add_callback(self, callback, *args, **kwargs):
+                self.logger.debug(str(e))
+
+         def add_callback(self, callback, *args, **kwargs):
         """Add a callback and return a deferred."""
         if self._called:
-            raise CalledError()
+            raise AlreadyCalledError()
 
         d = Deferred()
         self._callbacks.append((d, callback, args, kwargs))
@@ -84,12 +94,18 @@ class Deferred(object):
 
     def add_errback(self, errback, *args):
         """Add a errback."""
+        if self._called:
+            raise AlreadyCalledError()
+
         d = Deferred()
         self._errbacks.append((d, errback, args))
         return d
 
     def add_callbacks(self, callback, errback, cb_args, cb_kwargs, eb_args, eb_kwargs):
         """Same as doing add_callback and add_errback but in one call."""
+        if self._called:
+            raise AlreadyCalledError()
+
         f = Future(self.future._loop)
         d = Deferred()
         self._callbacks.append((d, callback, cb_args, cb_kwargs))
@@ -98,3 +114,5 @@ class Deferred(object):
 
     def wait(self, loop):
         """Wait for this differed to be called."""
+        while not self._called:
+            loop.loop(pyev.EVLOOP_NONBLOCK)

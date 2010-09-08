@@ -25,10 +25,11 @@ import cProfile
 import pyev
 
 sys.path.insert(0, '..')
-import whizzer
-from whizzer import debug
 
-class EchoClientProtocol(whizzer.Protocol):
+from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.client import TcpClient
+
+class EchoClientProtocol(Protocol):
     def __init__(self, loop, factory):
         whizzer.Protocol.__init__(self, loop)
         self.factory = factory

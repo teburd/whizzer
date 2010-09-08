@@ -25,7 +25,7 @@ import pyev
 from .transport import SocketTransport
 from .deferred import Deferred
 
-class ClientConnection(SocketConnection):
+class Connection(object):
     """Represents a connection to a server from a client. A SocketConnection template
     implementation.
     """
