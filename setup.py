@@ -35,12 +35,12 @@ Topic :: Internet
 
 
 setup(name='whizzer',
-      version='0.2.1',
+      version='0.3',
       description='Fast event driven socket server framework based on pyev',
       author='Tom Burdick',
       author_email='thomas.burdick@gmail.com',
       url='http://bitbucket.org/bfrog/whizzer',
       packages=find_packages(),
-      install_requires=['pyev', 'msgpack-python'],
+      install_requires=['pyev'],
       classifiers=CLASSIFIERS,
      )
