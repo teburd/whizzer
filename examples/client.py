@@ -59,5 +59,6 @@ if __name__ == "__main__":
     factory.protocol = EchoClientProtocol
 
     client = TcpClient(loop, factory, logger, "127.0.0.1", 2000)
+    client.connect()
 
     loop.loop()

@@ -69,6 +69,11 @@ class SocketClient(object):
         """Start watching the socket for it to be writtable."""
         protocol = self.factory.build(self.loop)
         self.connection = Connection(self.loop, sock, protocol, self, self.logger)
+
+    def _disconnect(self):
+        """Disconnect from a socket."""
+        self.connection.close()
+        self.connection = None
  
     def connect(self):
         """Should be overridden to create a socket and connect it.
@@ -76,7 +81,7 @@ class SocketClient(object):
         Once the socket is connected it should be passed to _connect.
 
         """
-    
+
     def remove_connection(self, connection):
         self.connection = None
 
@@ -86,10 +91,15 @@ class UnixClient(SocketClient):
     def __init__(self, loop, factory, logger, path):
         SocketClient.__init__(self, loop, factory, logger)
         self.path = path
+
+    def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self.path)
         self.logger.info("connected")
-        self._connect(sock)
+        return self._connect(sock)
+
+    def disconnect(self):
+        return self._disconnect()
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
@@ -97,8 +107,13 @@ class TcpClient(SocketClient):
         SocketClient.__init__(self, loop, factory, logger)
         self.host = host
         self.port = port
+
+    def connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self.host, self.port))
         self.logger.info("connected")
-        self._connect(sock)
+        return self._connect(sock)
+
+    def disconnect(self):
+        return self._disconnect()
 
