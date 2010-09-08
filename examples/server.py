@@ -30,15 +30,11 @@ import pstats
 
 sys.path.insert(0, '..')
 
-from whizzer.protocol import Protocol, ProtocolFactory
-from whizzer.server import TcpServer
+import whizzer
 
-class EchoProtocol(Protocol):
+class EchoProtocol(whizzer.Protocol):
     def data(self, data):
        self.transport.write(data)
-
-def interrupt(watcher, events):
-    watcher.loop.unloop()
 
 if __name__ == "__main__":
     loop = pyev.default_loop()
@@ -47,13 +43,12 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
-    signal_watcher = pyev.Signal(signal.SIGINT, loop, interrupt)
-    signal_watcher.start()
-    
-    factory = ProtocolFactory()
+    signal_handler = whizzer.SignalHandler(loop)
+   
+    factory = whizzer.ProtocolFactory()
     factory.protocol = EchoProtocol
 
-    server = TcpServer(loop, factory, "127.0.0.1", 2000, logger=logger)
+    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000, logger=logger)
     server.start()
     
     loop.loop()

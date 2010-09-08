@@ -21,10 +21,11 @@
 
 import socket
 import signal
-import pyev
-from .transport import SocketTransport, ConnectionClosed
-from .deferred import Deferred
+import logging
 
+import pyev
+
+from .transport import SocketTransport, ConnectionClosed
 
 class Connection(object):
     """Represents a connection to a server from a client."""
@@ -56,7 +57,7 @@ class Connection(object):
 
 class SocketClient(object):
     """A simple socket client."""
-    def __init__(self, loop, factory, logger):
+    def __init__(self, loop, factory, logger=logging):
         self.loop = loop
         self.factory = factory
         self.logger = logger
@@ -92,7 +93,7 @@ class SocketClient(object):
 
 class UnixClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, logger, path):
+    def __init__(self, loop, factory, path, logger=logging):
         SocketClient.__init__(self, loop, factory, logger)
         self.path = path
 
@@ -108,7 +109,7 @@ class UnixClient(SocketClient):
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, logger, host, port):
+    def __init__(self, loop, factory, host, port, logger=logging):
         SocketClient.__init__(self, loop, factory, logger)
         self.host = host
         self.port = port
