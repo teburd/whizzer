@@ -25,18 +25,19 @@ import pyev
 from .transport import SocketTransport, ConnectionClosed
 from .deferred import Deferred
 
+
 class Connection(object):
-    """Represents a connection to a server from a client. A SocketConnection template
-    implementation.
-    """
+    """Represents a connection to a server from a client."""
+
     def __init__(self, loop, sock, protocol, client, logger):
         """Create a client connection."""
         self.loop = loop
         self.sock = sock
         self.protocol = protocol
-        self.client = client 
+        self.client = client
         self.logger = logger
-        self.transport = SocketTransport(self.loop, self.sock, self.protocol.data, self.closed)
+        self.transport = SocketTransport(self.loop, self.sock,
+                                         self.protocol.data, self.closed)
         self.protocol.make_connection(self.transport)
 
     def closed(self, reason):
@@ -52,6 +53,7 @@ class Connection(object):
         """Close the connection."""
         self.transport.close()
 
+
 class SocketClient(object):
     """A simple socket client."""
     def __init__(self, loop, factory, logger):
@@ -59,7 +61,8 @@ class SocketClient(object):
         self.factory = factory
         self.logger = logger
         self.connection = None
-        self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop, self._interrupt)
+        self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop,
+                                          self._interrupt)
         self.sigint_watcher.start()
 
     def _interrupt(self, watcher, events):
@@ -68,16 +71,17 @@ class SocketClient(object):
     def _connect(self, sock):
         """Start watching the socket for it to be writtable."""
         protocol = self.factory.build(self.loop)
-        self.connection = Connection(self.loop, sock, protocol, self, self.logger)
+        self.connection = Connection(self.loop, sock, protocol, self,
+                                     self.logger)
 
     def _disconnect(self):
         """Disconnect from a socket."""
         self.connection.close()
         self.connection = None
- 
+
     def connect(self):
         """Should be overridden to create a socket and connect it.
-        
+
         Once the socket is connected it should be passed to _connect.
 
         """
@@ -85,7 +89,7 @@ class SocketClient(object):
     def remove_connection(self, connection):
         self.connection = None
 
-       
+
 class UnixClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
     def __init__(self, loop, factory, logger, path):
@@ -100,6 +104,7 @@ class UnixClient(SocketClient):
 
     def disconnect(self):
         return self._disconnect()
+
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
@@ -116,4 +121,3 @@ class TcpClient(SocketClient):
 
     def disconnect(self):
         return self._disconnect()
-
