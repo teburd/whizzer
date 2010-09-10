@@ -107,6 +107,11 @@ class TestDeferred(unittest.TestCase):
         self.assertRaises(AlreadyCalledError, self.deferred.errback, None)
         self.assertRaises(AlreadyCalledError, self.deferred.callback, None)
 
+    def test_cancel_callback(self):
+        self.deferred = Deferred(loop, cancelled_cb=self.set_result)
+        self.deferred.cancel()
+        self.assertTrue(self.result == self.deferred)
+
 
 if __name__ == '__main__':
     unittest.main()
