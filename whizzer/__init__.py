@@ -4,6 +4,7 @@ import logging
 
 import pyev
 
+from .futures import Future, Executor
 from .protocol import Protocol, ProtocolFactory
 from .server import SocketServer, TcpServer, UnixServer
 from .client import SocketClient, TcpClient, UnixClient
