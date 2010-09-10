@@ -101,7 +101,9 @@ class LastException(object):
         self.logger = logger
 
     def __del__(self):
+        print("deleting last exception")
         if self.exception:
+            print("deleting last exception with error")
             self.logger.error(str(self.exception))
             
 
@@ -182,7 +184,7 @@ class Deferred(object):
 
         """
 
-        self._do_wait(timeout, '_done')
+        self._do_wait(timeout)
 
         if self._exception:
             raise self._result
@@ -203,7 +205,7 @@ class Deferred(object):
         """Clear the wait flag if an interrupt is caught."""
         self._wait = False
 
-    def _do_wait(self, timeout, done_flag):
+    def _do_wait(self, timeout):
         """Wait for the deferred to be completed for a period of time
 
         Raises TimeoutError if the wait times out before the future is done.
@@ -215,7 +217,8 @@ class Deferred(object):
         if self._cancelled:
             raise CancelledError()
 
-        if not getattr(self, done_flag):
+        if not self._done:
+            print("not done")
             self._wait = True
 
             if timeout and timeout > 0.0:
@@ -223,12 +226,14 @@ class Deferred(object):
                                          self._clear_wait, None)
                 self._timer.start()
 
-            while self._wait and not getattr(self, done_flag) and not self._cancelled:
+            while self._wait and not self._done and not self._cancelled:
                 self.loop.loop(pyev.EVLOOP_ONESHOT)
+        else:
+            print("already done")
 
         if self._cancelled:
             raise CancelledError()
-        elif not done_flag:
+        elif not self._done:
             raise TimeoutError()
 
     def _start_callbacks(self, result, exception):

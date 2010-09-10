@@ -35,6 +35,7 @@ class FakeLogger(object):
         self.warn_msg = msg
  
     def error(self, msg):
+        print("setting error message " + msg)
         self.error_msg = msg
 
 class TestDeferred(unittest.TestCase):
@@ -79,6 +80,8 @@ class TestDeferred(unittest.TestCase):
         self.deferred.add_callback(throw_always)
         self.deferred.callback(None)
         self.deferred = None # delete it
+
+        print("error msg " + self.logger.error_msg)
         self.assertTrue(self.logger.error_msg != "")
 
     def test_errback(self):
@@ -155,8 +158,7 @@ class TestDeferred(unittest.TestCase):
 
     def test_delayed_result_timeout(self):
         self.call_later(0.5, self.deferred.callback, 5)
-        self.assertRaises(TimeoutError, self.deferred.result, 0.3)
-
+        self.assertRaises(TimeoutError, self.deferred.result, 0.1)
 
 
 
