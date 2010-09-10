@@ -184,7 +184,7 @@ class Deferred(object):
         else:
             return self._result
 
-    def final(self, timeout=None):
+    def last(self, timeout=None):
         """Return the last result of the callback chain or raise the last
         exception thrown and not caught by an errback.
 

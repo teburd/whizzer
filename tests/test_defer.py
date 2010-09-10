@@ -112,6 +112,14 @@ class TestDeferred(unittest.TestCase):
         self.deferred.cancel()
         self.assertTrue(self.result == self.deferred)
 
+    def test_last(self):
+        self.deferred.callback(5)
+        self.assertTrue(self.deferred.last()==5)
+
+    def test_first(self):
+        self.deferred.callback(5)
+        self.assertTrue(self.deferred.first()==5)
+
 
 if __name__ == '__main__':
     unittest.main()
