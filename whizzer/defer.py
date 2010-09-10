@@ -1,6 +1,43 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
-# Copyright (c) 2001-2010 Twisted Matrix Laboratories
+# Copyright (c) 2001-2010 
+# Allen Short
+# Andy Gayton
+# Andrew Bennetts
+# Antoine Pitrou
+# Apple Computer, Inc.
+# Benjamin Bruheim
+# Bob Ippolito
+# Canonical Limited
+# Christopher Armstrong
+# David Reid
+# Donovan Preston
+# Eric Mangold
+# Eyal Lotem
+# Itamar Shtull-Trauring
+# James Knight
+# Jason A. Mobarak
+# Jean-Paul Calderone
+# Jessica McKellar
+# Jonathan Jacobs
+# Jonathan Lange
+# Jonathan D. Simms
+# Jürgen Hermann
+# Kevin Horn
+# Kevin Turner
+# Mary Gardiner
+# Matthew Lefkowitz
+# Massachusetts Institute of Technology
+# Moshe Zadka
+# Paul Swartz
+# Pavel Pergamenshchik
+# Ralph Meijer
+# Sean Riley
+# Software Freedom Conservancy
+# Travis B. Hartwell
+# Thijs Triemstra
+# Thomas Herve
+# Timothy Allen
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -33,17 +70,31 @@ relatively easy to write.
 class AlreadyCalledError(Exception):
     """Error raised if a Deferred has already had errback or callback called."""
 
-class LastException(object):
-    """When this object dies if there is something set to self.exception a string
-    representation of it is printed out upon deletion.
+class TimeoutError(Exception):
+    """Error raised if a Deferred first(), every(), or final() call timeout."""
 
+class LastException(object):
+    """When this object dies if there is something set to self.exception a
+    traceback is printed.
+
+    The reason this object exists is that printing the stacktrace before a
+    deferred is deleted is incorrect. An errback can be added at any time
+    that would then trap the exception. So until the Deferred is collected
+    the only sane thing to do is nothing.
+    
     """
-    def __init__(self):
+    def __init__(self, logger=logging):
+        """LastException.
+
+        logger -- optional logger object, excepted to have an error method.
+
+        """
         self.exception = None
+        self.logger = logger
 
     def __del__(self):
         if self.exception:
-            logging.err(str(self.exception))
+            self.logger.error(str(self.exception))
             
 
 class Deferred(object):
@@ -51,22 +102,25 @@ class Deferred(object):
 
     Follows the Twisted Deferred interface with the exception of camel case.
 
-    It also requires a pyev loop be passed to the constructor.
-
     """
 
-    def __init__(self, loop):
+    def __init__(self, loop, logger=logging):
         """Deferred.
 
         loop -- a pyev loop instance
+        logger -- optional logger object, excepted to have debug() and error()
+                  methods that take strings
 
         """
         self.loop = loop
+        self.logger = logger
         self.called = False
+        self.cancelled = False
+        self._wait = False
         self._result = None
         self._exception = None
         self._callbacks = []
-        self._current = 0
+        self._last_exception = LastException(self.logger)
 
     def add_callbacks(self, callback, errback=None, callback_args=None,
                       callback_kwargs=None, errback_args=None,
@@ -104,11 +158,11 @@ class Deferred(object):
     def errback(self, exception):
         self._start_callbacks(None, exception)
 
-    def result(self, timeout=None):
-        """Return the result or raise the exception first given to callback()
+    def first(self, timeout=None):
+        """Return the first result or raise the exception first given to callback()
         or errback().
         
-        This will block until the result is available or raise a TimeoutError
+        This will block until the first result is available or raise a TimeoutError
         given a timeout.
 
         """
@@ -117,8 +171,7 @@ class Deferred(object):
         else:
             return self._result
 
-
-    def final_result(self, timeout=None):
+    def final(self, timeout=None):
         """Return the last result of the callback chain or raise the last
         exception thrown and not caught by an errback.
 
@@ -134,6 +187,38 @@ class Deferred(object):
         else:
             return self._result
 
+    def _clear_wait(self, watcher, events):
+        """Clear the wait flag if an interrupt is caught."""
+        self._wait = False
+
+    def _do_wait(self, timeout):
+        """Wait for the deferred to be completed for a period of time
+
+        Raises TimeoutError if the wait times out before the future is done.
+        Raises CancelledError if the future is cancelled before the
+        timeout is done.
+
+        """
+
+        if self._cancelled:
+            raise CancelledError()
+
+        if not self._done:
+            self._wait = True
+
+            if timeout and timeout > 0.0:
+                self._timer = pyev.Timer(timeout, 0.0, self._loop,
+                                         self._clear_wait, None)
+                self._timer.start()
+
+            while self._wait and not self._done and not self._cancelled:
+                self._loop.loop(pyev.EVLOOP_ONESHOT)
+
+        if self._cancelled:
+            raise CancelledError()
+        elif not self._done:
+            raise TimeoutError()
+
     def _start_callbacks(self, result, exception):
         """Perform the callback chain going back and forth between the callback
         and errback as needed.
@@ -142,21 +227,28 @@ class Deferred(object):
         errback then its simply logged.
 
         """
+        self._called = True
         self._result = result
         self._exception = exception
+        self._callbacks()
 
-    def _run_callbacks(self):
+    def _callbacks(self):
+        """Perform the callbacks."""
         while self.callbacks:
             cb, eb, cb_args, cb_kwargs, eb_args, eb_kwargs = self._callbacks.pop(0)
-            if cb and not self.exception:
+            if cb and not self._exception:
                 try:
-                    self.result = cb(result, *cb_args, **cb_kwargs)
+                    self._result = cb(self._result, *cb_args, **cb_kwargs)
                 except Exception as e:
-                    self.exception = e
-            elif eb and self.exception:
+                    self._exception = e
+            elif eb and self._exception:
                 try:
-                    self.result = eb(error, *cb_args, **cb_kwargs)
-                    self.exception = None
+                    self._result = eb(self._exception, *cb_args, **cb_kwargs)
+                    self._exception = None
                 except Exception as e:
-                    self.exception = e
+                    self._exception = e
 
+        if self._exception:
+            self._last_exception.exception = self._exception
+        else:
+            eslf._last_exception.exception = None
