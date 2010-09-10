@@ -115,11 +115,18 @@ class TestDeferred(unittest.TestCase):
     def test_last(self):
         self.deferred.callback(5)
         self.assertTrue(self.deferred.last()==5)
+        self.deferred.add_callback(add, 2)
+        self.assertTrue(self.deferred.last()==7)
+        self.deferred.add_callback(throw_always)
+        self.assertRaises(Exception, self.deferred.last)
 
     def test_first(self):
         self.deferred.callback(5)
         self.assertTrue(self.deferred.first()==5)
 
+    def test_first_exceptioned(self):
+        self.deferred.errback(Exception)
+        self.assertRaises(Exception, self.deferred.first)
 
 if __name__ == '__main__':
     unittest.main()
