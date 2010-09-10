@@ -4,11 +4,12 @@ import logging
 
 import pyev
 
-from .futures import Future, Executor
+from .defer import Deferred, AlreadyCalledError, CancelledError, TimeoutError
 from .protocol import Protocol, ProtocolFactory
 from .server import SocketServer, TcpServer, UnixServer
 from .client import SocketClient, TcpClient, UnixClient
-from .transport import SocketTransport
+from .transport import SocketTransport, ConnectionClosed
+
 
 class SignalHandler(object):
     """Simple signal handler."""
