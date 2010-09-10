@@ -111,11 +111,13 @@ class TestDeferred(unittest.TestCase):
         self.deferred.cancel()
         self.assertRaises(CancelledError, self.deferred.errback, None)
         self.assertRaises(CancelledError, self.deferred.callback, None)
+        self.assertRaises(CancelledError, self.deferred.result)
 
     def test_already_called(self):
         self.deferred.callback(None)
         self.assertRaises(AlreadyCalledError, self.deferred.errback, None)
         self.assertRaises(AlreadyCalledError, self.deferred.callback, None)
+        self.assertRaises(AlreadyCalledError, self.deferred.cancel)
 
     def test_cancel_callback(self):
         self.deferred = Deferred(loop, cancelled_cb=self.set_result)
@@ -150,6 +152,11 @@ class TestDeferred(unittest.TestCase):
         self.deferred.add_callback(add, 4)
         self.assertTrue(self.deferred.result() == 9)
         self.assertTrue(time.time() - now > 0.4)
+
+    def test_delayed_result_timeout(self):
+        self.call_later(0.5, self.deferred.callback, 5)
+        self.assertRaises(TimeoutError, self.deferred.result, 0.3)
+
 
 
 
