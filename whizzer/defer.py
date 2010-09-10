@@ -67,11 +67,18 @@ relatively easy to write.
 
 """
 
+
 class AlreadyCalledError(Exception):
     """Error raised if a Deferred has already had errback or callback called."""
 
+
 class TimeoutError(Exception):
     """Error raised if a Deferred first(), every(), or final() call timeout."""
+
+
+class CancelledError(Exception):
+    """Error raised if a Deferred first(), every(), or final() call timeout."""
+
 
 class LastException(object):
     """When this object dies if there is something set to self.exception a
@@ -104,10 +111,12 @@ class Deferred(object):
 
     """
 
-    def __init__(self, loop, logger=logging):
+    def __init__(self, loop, cancelled_cb=None, logger=logging):
         """Deferred.
 
         loop -- a pyev loop instance
+        cancelled_cb -- an optional callable given this deferred as its
+                        argument when cancel() is called.
         logger -- optional logger object, excepted to have debug() and error()
                   methods that take strings
 
@@ -115,7 +124,9 @@ class Deferred(object):
         self.loop = loop
         self.logger = logger
         self.called = False
-        self.cancelled = False
+        self.done = False
+        self._cancelled = False
+        self._cancelled_cb = cancelled_cb
         self._wait = False
         self._result = None
         self._exception = None
@@ -139,7 +150,7 @@ class Deferred(object):
                                errback_kwargs))
 
         if self.called:
-            self._run_callbacks()
+            self._do_callbacks()
 
     def add_callback(self, callback, *callback_args, **callback_kwargs):
         """Add a callback without an associated errback."""
@@ -166,6 +177,8 @@ class Deferred(object):
         given a timeout.
 
         """
+        self._do_wait(timeout, '_called')
+
         if self._exception:
             raise self._exception
         else:
@@ -182,16 +195,28 @@ class Deferred(object):
         except the entire callback processing chain is performed first.
 
         """
+
+        self._do_wait(timeout, '_done')
+
         if self._exception:
             raise self._exception
         else:
             return self._result
 
+    def cancel(self):
+        """Cancel the deferred."""
+        if self._called:
+            raise AlreadyCalledError()
+
+        if not self._cancelled:
+            self._cancelled = True
+            self._canceled_cb(self)
+    
     def _clear_wait(self, watcher, events):
         """Clear the wait flag if an interrupt is caught."""
         self._wait = False
 
-    def _do_wait(self, timeout):
+    def _do_wait(self, timeout, done_flag):
         """Wait for the deferred to be completed for a period of time
 
         Raises TimeoutError if the wait times out before the future is done.
@@ -203,7 +228,7 @@ class Deferred(object):
         if self._cancelled:
             raise CancelledError()
 
-        if not self._done:
+        if not getattr(self, done_flag):
             self._wait = True
 
             if timeout and timeout > 0.0:
@@ -211,12 +236,12 @@ class Deferred(object):
                                          self._clear_wait, None)
                 self._timer.start()
 
-            while self._wait and not self._done and not self._cancelled:
+            while self._wait and not getattr(self, done_flag) and not self._cancelled:
                 self._loop.loop(pyev.EVLOOP_ONESHOT)
 
         if self._cancelled:
             raise CancelledError()
-        elif not self._done:
+        elif not done_flag:
             raise TimeoutError()
 
     def _start_callbacks(self, result, exception):
@@ -227,14 +252,19 @@ class Deferred(object):
         errback then its simply logged.
 
         """
-        self._called = True
+        if self._cancelled:
+            raise CancelledError()
+
         self._result = result
         self._exception = exception
-        self._callbacks()
+        self._called = True
+        self._do_callbacks()
 
-    def _callbacks(self):
+    def _do_callbacks(self):
         """Perform the callbacks."""
-        while self.callbacks:
+        self._done = False
+
+        while self._callbacks and not self._cancelled:
             cb, eb, cb_args, cb_kwargs, eb_args, eb_kwargs = self._callbacks.pop(0)
             if cb and not self._exception:
                 try:
@@ -248,7 +278,15 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = e
 
+        if self._cancelled:
+            raise CancelledError()
+        
         if self._exception:
             self._last_exception.exception = self._exception
         else:
-            eslf._last_exception.exception = None
+            self._last_exception.exception = None
+        
+        self._done = True
+
+
+
