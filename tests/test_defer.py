@@ -55,13 +55,14 @@ class TestDeferred(unittest.TestCase):
         self.exception = exception
 
     def call_later(self, delay, func, *args, **kwargs):
-        self.timer = pyev.Timer(delay, 0.0, loop, self._do_later, (func, args, kwargs))
-        self.timer.start()
+        timer = pyev.Timer(delay, 0.0, loop, self._do_later, (func, args, kwargs))
+        timer.start()
+        return timer
 
     def _do_later(self, watcher, events):
         (func, args, kwargs) = watcher.data
         func(*args, **kwargs)
-        self.timer.stop()
+        watcher.stop()
 
     def test_callback(self):
         self.deferred.add_callback(self.set_result)
@@ -145,20 +146,26 @@ class TestDeferred(unittest.TestCase):
 
     def test_delayed_result(self):
         now = time.time()
-        self.call_later(0.5, self.deferred.callback, 5)
+        t1 = self.call_later(0.5, self.deferred.callback, 5)
         self.assertTrue(self.deferred.result() == 5)
         self.assertTrue(time.time() - now > 0.4)
 
     def test_delayed_result_chained(self):
         now = time.time()
-        self.call_later(0.5, self.deferred.callback, 5)
+        t1 = self.call_later(0.5, self.deferred.callback, 5)
         self.deferred.add_callback(add, 4)
         self.assertTrue(self.deferred.result() == 9)
         self.assertTrue(time.time() - now > 0.4)
 
     def test_delayed_result_timeout(self):
-        self.call_later(0.5, self.deferred.callback, 5)
+        t1 = self.call_later(0.5, self.deferred.callback, 5)
         self.assertRaises(TimeoutError, self.deferred.result, 0.1)
+
+    def test_delayed_result_cancelled(self):
+        t1 = self.call_later(0.5, self.deferred.callback, 5)
+        t2 = self.call_later(0.2, self.deferred.cancel)
+        self.assertRaises(CancelledError, self.deferred.result, 0.3)
+
 
 
 
