@@ -6,7 +6,7 @@ import pyev
 
 loop = pyev.default_loop()
 
-from whizzer.defer import Deferred
+from whizzer.defer import Deferred, CancelledError, AlreadyCalledError, TimeoutError
 
 def throw_always(result):
     raise Exception("success")
@@ -96,6 +96,16 @@ class TestDeferred(unittest.TestCase):
         self.deferred.add_errback(self.set_result)
         self.deferred.errback(None)
         self.assertTrue(isinstance(self.result, Exception))
+
+    def test_cancelled(self):
+        self.deferred.cancel()
+        self.assertRaises(CancelledError, self.deferred.errback, None)
+        self.assertRaises(CancelledError, self.deferred.callback, None)
+
+    def test_already_called(self):
+        self.deferred.callback(None)
+        self.assertRaises(AlreadyCalledError, self.deferred.errback, None)
+        self.assertRaises(AlreadyCalledError, self.deferred.callback, None)
 
 
 if __name__ == '__main__':

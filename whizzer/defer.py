@@ -177,7 +177,7 @@ class Deferred(object):
         given a timeout.
 
         """
-        self._do_wait(timeout, '_called')
+        self._do_wait(timeout, 'called')
 
         if self._exception:
             raise self._result
@@ -205,12 +205,13 @@ class Deferred(object):
 
     def cancel(self):
         """Cancel the deferred."""
-        if self._called:
+        if self.called:
             raise AlreadyCalledError()
 
         if not self._cancelled:
             self._cancelled = True
-            self._canceled_cb(self)
+            if self._cancelled_cb:
+                self._cancelled_cb(self)
     
     def _clear_wait(self, watcher, events):
         """Clear the wait flag if an interrupt is caught."""
@@ -254,10 +255,12 @@ class Deferred(object):
         """
         if self._cancelled:
             raise CancelledError()
+        if self.called:
+            raise AlreadyCalledError()
 
         self._result = result
         self._exception = exception
-        self._called = True
+        self.called = True
         self._do_callbacks()
 
     def _do_callbacks(self):
