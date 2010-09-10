@@ -129,7 +129,7 @@ class Deferred(object):
         self._cancelled_cb = cancelled_cb
         self._wait = False
         self._result = None
-        self._exception = None
+        self._exception = False
         self._callbacks = []
         self._last_exception = LastException(self.logger)
 
@@ -164,10 +164,10 @@ class Deferred(object):
 
     def callback(self, result):
         """Begin the callback chain with the first callback."""
-        self._start_callbacks(result, None)
+        self._start_callbacks(result, False)
 
-    def errback(self, exception):
-        self._start_callbacks(None, exception)
+    def errback(self, result):
+        self._start_callbacks(result, True)
 
     def first(self, timeout=None):
         """Return the first result or raise the exception first given to callback()
@@ -180,7 +180,7 @@ class Deferred(object):
         self._do_wait(timeout, '_called')
 
         if self._exception:
-            raise self._exception
+            raise self._result
         else:
             return self._result
 
@@ -199,7 +199,7 @@ class Deferred(object):
         self._do_wait(timeout, '_done')
 
         if self._exception:
-            raise self._exception
+            raise self._result
         else:
             return self._result
 
@@ -269,20 +269,23 @@ class Deferred(object):
             if cb and not self._exception:
                 try:
                     self._result = cb(self._result, *cb_args, **cb_kwargs)
+                    self._exception = False
                 except Exception as e:
-                    self._exception = e
+                    self._exception = True
+                    self._result = e
             elif eb and self._exception:
                 try:
-                    self._result = eb(self._exception, *cb_args, **cb_kwargs)
-                    self._exception = None
+                    self._result = eb(self._result, *eb_args, **eb_kwargs)
+                    self._exception = False
                 except Exception as e:
-                    self._exception = e
+                    self._exception = True
+                    self._result = e
 
         if self._cancelled:
             raise CancelledError()
         
         if self._exception:
-            self._last_exception.exception = self._exception
+            self._last_exception.exception = self._result
         else:
             self._last_exception.exception = None
         

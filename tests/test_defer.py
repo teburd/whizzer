@@ -8,26 +8,14 @@ loop = pyev.default_loop()
 
 from whizzer.defer import Deferred
 
-def print_hello():
-    print("hello")
-
-def add_nums(a, b):
-    return a + b
-
 def throw_always(result):
     raise Exception("success")
 
-def keywords(a, b, **kwargs):
-    return {'a':a, 'b':b, 'others':kwargs}
+def one_always(result):
+    return 1
 
 def add(a, b):
     return a+b
-
-def multiply(a, b):
-    return a*b
-
-def divide(a, b):
-    return a/b
 
 class FakeLogger(object):
     def __init__(self):
@@ -52,9 +40,11 @@ class TestDeferred(unittest.TestCase):
     def setUp(self):
         self.logger = FakeLogger()
         self.deferred = Deferred(loop, logger=self.logger)
+        self.result = None
 
     def tearDown(self):
         self.deferred = None
+        self.result = None
 
     def set_result(self, result):
         self.result = result
@@ -75,11 +65,38 @@ class TestDeferred(unittest.TestCase):
         self.assertTrue(self.result==6)
 
     def test_log_error(self):
+        """Unhandled exceptions should be logged if the deferred is deleted."""
         self.deferred.add_callback(throw_always)
         self.deferred.callback(None)
         self.deferred = None # delete it
-        print(self.logger.error_msg)
         self.assertTrue(self.logger.error_msg != "")
+
+    def test_errback(self):
+        self.deferred.add_errback(self.set_result)
+        self.deferred.errback(5)
+        self.assertTrue(self.result==5)
+
+    def test_callback_skips(self):
+        """When a callback raises an exception
+        all callbacks without errbacks are skipped until the next
+        errback is found.
+
+        """
+        self.deferred.add_callback(throw_always)
+        self.deferred.add_callback(one_always)
+        self.deferred.add_callback(add, 2)
+        self.deferred.add_errback(one_always)
+        self.deferred.add_callback(self.set_result)
+        self.deferred.callback(None)
+        self.assertTrue(self.result==1)
+
+    def test_errback_reraised(self):
+        """If an errback raises, then the next errback is called."""
+        self.deferred.add_errback(throw_always)
+        self.deferred.add_errback(self.set_result)
+        self.deferred.errback(None)
+        self.assertTrue(isinstance(self.result, Exception))
+
 
 if __name__ == '__main__':
     unittest.main()
