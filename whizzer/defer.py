@@ -58,6 +58,7 @@
 # THE SOFTWARE.
 
 import logging
+import pyev
 
 """An implementation of Twisted Deferred class and helpers with some add ons
 that make Deferred also look similiar to pythonfutures.Future object.
@@ -124,7 +125,7 @@ class Deferred(object):
         self.loop = loop
         self.logger = logger
         self.called = False
-        self.done = False
+        self._done = False
         self._cancelled = False
         self._cancelled_cb = cancelled_cb
         self._wait = False
@@ -169,22 +170,7 @@ class Deferred(object):
     def errback(self, result):
         self._start_callbacks(result, True)
 
-    def first(self, timeout=None):
-        """Return the first result or raise the exception first given to callback()
-        or errback().
-        
-        This will block until the first result is available or raise a TimeoutError
-        given a timeout.
-
-        """
-        self._do_wait(timeout, 'called')
-
-        if self._exception:
-            raise self._result
-        else:
-            return self._result
-
-    def last(self, timeout=None):
+    def result(self, timeout=None):
         """Return the last result of the callback chain or raise the last
         exception thrown and not caught by an errback.
 
@@ -233,12 +219,12 @@ class Deferred(object):
             self._wait = True
 
             if timeout and timeout > 0.0:
-                self._timer = pyev.Timer(timeout, 0.0, self._loop,
+                self._timer = pyev.Timer(timeout, 0.0, self.loop,
                                          self._clear_wait, None)
                 self._timer.start()
 
             while self._wait and not getattr(self, done_flag) and not self._cancelled:
-                self._loop.loop(pyev.EVLOOP_ONESHOT)
+                self.loop.loop(pyev.EVLOOP_ONESHOT)
 
         if self._cancelled:
             raise CancelledError()

@@ -1,4 +1,5 @@
 import sys
+import time
 sys.path.insert(0, '..')
 
 import unittest
@@ -51,6 +52,15 @@ class TestDeferred(unittest.TestCase):
 
     def set_exception(self, exception):
         self.exception = exception
+
+    def call_later(self, delay, func, *args, **kwargs):
+        self.timer = pyev.Timer(delay, 0.0, loop, self._do_later, (func, args, kwargs))
+        self.timer.start()
+
+    def _do_later(self, watcher, events):
+        (func, args, kwargs) = watcher.data
+        func(*args, **kwargs)
+        self.timer.stop()
 
     def test_callback(self):
         self.deferred.add_callback(self.set_result)
@@ -112,21 +122,36 @@ class TestDeferred(unittest.TestCase):
         self.deferred.cancel()
         self.assertTrue(self.result == self.deferred)
 
-    def test_last(self):
+    def test_result_chain(self):
         self.deferred.callback(5)
-        self.assertTrue(self.deferred.last()==5)
+        self.assertTrue(self.deferred.result()==5)
         self.deferred.add_callback(add, 2)
-        self.assertTrue(self.deferred.last()==7)
+        self.assertTrue(self.deferred.result()==7)
         self.deferred.add_callback(throw_always)
-        self.assertRaises(Exception, self.deferred.last)
+        self.assertRaises(Exception, self.deferred.result)
 
-    def test_first(self):
+    def test_result(self):
         self.deferred.callback(5)
-        self.assertTrue(self.deferred.first()==5)
+        self.assertTrue(self.deferred.result()==5)
 
-    def test_first_exceptioned(self):
+    def test_result_exceptioned(self):
         self.deferred.errback(Exception)
-        self.assertRaises(Exception, self.deferred.first)
+        self.assertRaises(Exception, self.deferred.result)
+
+    def test_delayed_result(self):
+        now = time.time()
+        self.call_later(0.5, self.deferred.callback, 5)
+        self.assertTrue(self.deferred.result() == 5)
+        self.assertTrue(time.time() - now > 0.4)
+
+    def test_delayed_result_chained(self):
+        now = time.time()
+        self.call_later(0.5, self.deferred.callback, 5)
+        self.deferred.add_callback(add, 4)
+        self.assertTrue(self.deferred.result() == 9)
+        self.assertTrue(time.time() - now > 0.4)
+
+
 
 if __name__ == '__main__':
     unittest.main()
