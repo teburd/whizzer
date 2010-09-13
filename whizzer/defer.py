@@ -163,14 +163,16 @@ class Deferred(object):
         if self.called:
             self._do_callbacks()
 
+        return self
+
     def add_callback(self, callback, *callback_args, **callback_kwargs):
         """Add a callback without an associated errback."""
-        self.add_callbacks(callback, callback_args=callback_args,
+        return self.add_callbacks(callback, callback_args=callback_args,
                            callback_kwargs=callback_kwargs)
 
     def add_errback(self, errback, *errback_args, **errback_kwargs):
         """Add a errback without an associated callback."""
-        self.add_callbacks(None, errback=errback, errback_args=errback_args,
+        return self.add_callbacks(None, errback=errback, errback_args=errback_args,
                            errback_kwargs=errback_kwargs)
 
     def callback(self, result):
