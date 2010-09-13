@@ -58,6 +58,7 @@
 # THE SOFTWARE.
 
 import logging
+import traceback
 import pyev
 
 """An implementation of Twisted Deferred class and helpers with some add ons
@@ -98,14 +99,20 @@ class LastException(object):
 
         """
         self.exception = None
+        self.tb_info = None
         self.logger = logger
 
     def __del__(self):
-        print("deleting last exception")
         if self.exception:
-            print("deleting last exception with error")
-            self.logger.error(str(self.exception))
-            
+            if self.tb_info:
+                self.logger.error(str(self.tb_info))
+            else:
+                self.logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
+
+        self.logger = None
+        self.exception = None
+        self.tb_info = None
+
 
 class Deferred(object):
     """Deferred result handling.
@@ -133,6 +140,7 @@ class Deferred(object):
         self._wait = False
         self._result = None
         self._exception = False
+        self._tb_info = None
         self._callbacks = []
         self._last_exception = LastException(self.logger)
 
@@ -170,6 +178,13 @@ class Deferred(object):
         self._start_callbacks(result, False)
 
     def errback(self, result):
+        """Begin the callback chain with the first errback.
+
+        result -- A BaseException derivative.
+
+        """
+
+        assert(isinstance(result, BaseException))
         self._start_callbacks(result, True)
 
     def result(self, timeout=None):
@@ -267,6 +282,7 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = True
                     self._result = e
+                    self._tb_info = traceback.format_exc()
             elif eb and self._exception:
                 try:
                     self._result = eb(self._result, *eb_args, **eb_kwargs)
@@ -274,14 +290,17 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = True
                     self._result = e
+                    self._tb_info = traceback.format_exc()
 
         if self._cancelled:
             raise CancelledError()
         
         if self._exception:
             self._last_exception.exception = self._result
+            self._last_exception.tb_info = self._tb_info
         else:
             self._last_exception.exception = None
+            self._last_exception.tb_info = None
         
         self._done = True
 

@@ -87,8 +87,8 @@ class TestDeferred(unittest.TestCase):
 
     def test_errback(self):
         self.deferred.add_errback(self.set_result)
-        self.deferred.errback(5)
-        self.assertTrue(self.result==5)
+        self.deferred.errback(Exception())
+        self.assertTrue(isinstance(self.result, Exception))
 
     def test_callback_skips(self):
         """When a callback raises an exception
@@ -108,18 +108,18 @@ class TestDeferred(unittest.TestCase):
         """If an errback raises, then the next errback is called."""
         self.deferred.add_errback(throw_always)
         self.deferred.add_errback(self.set_result)
-        self.deferred.errback(None)
+        self.deferred.errback(Exception())
         self.assertTrue(isinstance(self.result, Exception))
 
     def test_cancelled(self):
         self.deferred.cancel()
-        self.assertRaises(CancelledError, self.deferred.errback, None)
+        self.assertRaises(CancelledError, self.deferred.errback, Exception("testcancelled"))
         self.assertRaises(CancelledError, self.deferred.callback, None)
         self.assertRaises(CancelledError, self.deferred.result)
 
     def test_already_called(self):
         self.deferred.callback(None)
-        self.assertRaises(AlreadyCalledError, self.deferred.errback, None)
+        self.assertRaises(AlreadyCalledError, self.deferred.errback, Exception("testalreadycalled"))
         self.assertRaises(AlreadyCalledError, self.deferred.callback, None)
         self.assertRaises(AlreadyCalledError, self.deferred.cancel)
 
@@ -141,7 +141,7 @@ class TestDeferred(unittest.TestCase):
         self.assertTrue(self.deferred.result()==5)
 
     def test_result_exceptioned(self):
-        self.deferred.errback(Exception)
+        self.deferred.errback(Exception("exceptioned result"))
         self.assertRaises(Exception, self.deferred.result)
 
     def test_delayed_result(self):
