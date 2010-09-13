@@ -235,7 +235,6 @@ class Deferred(object):
             raise CancelledError()
 
         if not self._done:
-            print("not done")
             self._wait = True
 
             if timeout and timeout > 0.0:
@@ -245,8 +244,6 @@ class Deferred(object):
 
             while self._wait and not self._done and not self._cancelled:
                 self.loop.loop(pyev.EVLOOP_ONESHOT)
-        else:
-            print("already done")
 
         if self._cancelled:
             raise CancelledError()
