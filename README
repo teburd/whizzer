@@ -7,34 +7,7 @@ relatively simple.
 
 It might look similiar in nature to Twisted. Thats because I believe Twisted 
 does things right! It is not my goal to reinvent all of Twisted. I simply wanted
-a socket handling library that was based on pyev. Implementing  a pyev reactor 
+a socket handling library that was based on pyev. Implementing a pyev reactor 
 seemed like a larger task then mimicking Twisted's Deferred, Protocol,
 and ProtocolFactory ideas. I still don't think I was wrong.
 
-Usage:
-
-import signal
-import pyev
-from whizzer.protocol import Protocol, ProtocolFactory
-from whizzer.server import TcpServer
-
-def interrupt(self, watcher, events):
-    watcher.loop.unloop()
-
-def close(self, reason):
-    pass
-
-class EchoProtocol(Protocol):
-    def data(self, data):
-        self.transport.write(data)
-
-if __name__ == "__main__":
-    loop = pyev.default_loop()
-    logger = logging.getLogger('myserver')
-    signal_watcher = pyev.Signal(signal.SIGINT, loop, interrupt)
-    signal_watcher.start()
-    factory = ProtocolFactory(loop)
-    factory.protocol = EchoProtocol
-    server = TcpServer(loop, factory, ('127.0.0.1', 5000), logger, close)
-    server.start()
-    loop.loop()
