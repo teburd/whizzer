@@ -10,13 +10,13 @@ from .server import SocketServer, TcpServer, UnixServer
 from .client import SocketClient, TcpClient, UnixClient
 from .transport import SocketTransport, ConnectionClosed
 
+def _interrupt(self, watcher, events):
+    watcher.loop.unloop()
 
-class SignalHandler(object):
-    """Simple signal handler."""
-    def __init__(self, loop, logger=logging):
-        self.loop = loop
-        self.watcher = pyev.Signal(signal.SIGINT, loop, self._interrupt)
-        self.watcher.start()
+def signal_handler(loop):
+    """Install a basic signal handler watcher and return it."""
+    watcher = pyev.Signal(signal.SIGINT, loop, _interrupt)
+    return watcher
 
-    def _interrupt(self, watcher, events):
-        watcher.loop.unloop()
+
+

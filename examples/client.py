@@ -48,7 +48,7 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
-    signal_handler = whizzer.SignalHandler(loop)
+    signal_handler = whizzer.signal_handler(loop)
 
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoClientProtocol
@@ -56,4 +56,5 @@ if __name__ == "__main__":
     client = whizzer.TcpClient(loop, factory, "127.0.0.1", 2000, logger=logger)
     client.connect()
 
+    signal_handler.start()
     loop.loop()

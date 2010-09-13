@@ -44,12 +44,13 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
-    signal_handler = whizzer.SignalHandler(loop)
+    signal_handler = whizzer.signal_handler(loop)
    
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoProtocol
 
     server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000, logger=logger)
+
+    signal_handler.start()
     server.start()
-    
     loop.loop()
