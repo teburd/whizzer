@@ -10,7 +10,7 @@ from .server import SocketServer, TcpServer, UnixServer
 from .client import SocketClient, TcpClient, UnixClient
 from .transport import SocketTransport, ConnectionClosed
 
-def _interrupt(self, watcher, events):
+def _interrupt(watcher, events):
     watcher.loop.unloop()
 
 def signal_handler(loop):

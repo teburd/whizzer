@@ -40,7 +40,6 @@ class Protocol(object):
         """Handle an incoming stream of data."""
 
     def lose_connection(self):
-        print("losing connection.")
         self.transport.close()
 
 class ProtocolFactory(object):

@@ -19,38 +19,34 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+"""Ping Pong Web, Nicholas Piel's Asynchronous Web Server Test.
+
+This ping pong web server compares extremely well to everything else
+listed on Nicholas's website.
+
+http://nichol.as/asynchronous-servers-in-python
+
+"""
+
 import sys
-import time
-import signal
-import logging
 
 import pyev
-import cProfile
-import pstats
 
 sys.path.insert(0, '..')
 
 import whizzer
 
-class EchoProtocol(whizzer.Protocol):
-    def data(self, data):
-        print("got data, returning it")
-        self.transport.write(data)
+class PongProtocol(whizzer.Protocol):
+    def connection_made(self):
+        self.transport.write("HTTP/1.0 200 OK\r\nContent-Length: 5 \r\n\r\nPong!\r\n")
+        self.lose_connection()
 
-if __name__ == "__main__":
-    loop = pyev.default_loop()
-    
-    logger = logging.getLogger('echo_server')
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
+loop = pyev.default_loop()
+sigwatcher = whizzer.signal_handler(loop)
+factory = whizzer.ProtocolFactory()
+factory.protocol = PongProtocol
+server = whizzer.TcpServer(loop, factory, "0.0.0.0", 8000, 500)
 
-    signal_handler = whizzer.signal_handler(loop)
-   
-    factory = whizzer.ProtocolFactory()
-    factory.protocol = EchoProtocol
-
-    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
-
-    signal_handler.start()
-    server.start()
-    loop.loop()
+sigwatcher.start()
+server.start()
+loop.loop()

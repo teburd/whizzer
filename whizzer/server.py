@@ -38,8 +38,10 @@ class Connection(object):
         self.server = server
         self.logger = logger
         self.transport = SocketTransport(self.loop, self.sock, self.protocol.data, self.closed)
-        self.protocol.make_connection(self.transport)
+
+    def make_connection(self):
         self.transport.start()
+        self.protocol.make_connection(self.transport)
 
     def closed(self, reason):
         """Callback performed when the transport is closed."""
@@ -148,6 +150,7 @@ class SocketServer(object):
             sock, addr = self.sock.accept()
             connection = Connection(self.loop, sock, protocol, self, self.logger)
             self.connections.add(connection)
+            connection.make_connection()
             self.logger.info("added connection")
         except IOError as e:
             self.shutdown(e)
