@@ -73,9 +73,28 @@ class SocketClient(object):
 
     def _connect(self, sock):
         """Start watching the socket for it to be writtable."""
+        
+        d = Deferred(self.loop)
+        self.connect_deferreds.append(d)
+
+        self.sock = sock
+        self.connect_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._connected)
+        self.connect_watcher.start()
+
+        return d
+
+
+    def _connected(self, watcher, events):
+        """When the socket is writtable, the socket is ready to be used."""
+        self.connect_watcher.stop()
+        self.connect_watcher = None
         protocol = self.factory.build(self.loop)
         self.connection = Connection(self.loop, sock, protocol, self,
                                      self.logger)
+        
+        for d in self.connect_deferreds:
+            d.callback(protocol)
+ 
 
     def _disconnect(self):
         """Disconnect from a socket."""
