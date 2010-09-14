@@ -23,6 +23,7 @@ import gc
 import os
 import sys
 import socket
+import select
 import unittest
 import pyev
 
@@ -53,26 +54,59 @@ class TestUnixServer(unittest.TestCase):
     def setUp(self):
         self.logger = MockLogger()
         self.factory = MockFactory()
-        self.factory.protocl = MockProtocol
+        self.factory.protocol = MockProtocol
         self.path = "test"
         self.server = UnixServer(loop, self.factory, self.path, logger=self.logger)
-        self.csock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
     def tearDown(self):
-        self.logger = None
-        self.factory = None
+        self.server.shutdown()
         self.server = None
+        self.server = None
+        self.factory = None
+        self.logger = None
         gc.collect()
 
-    def cconnect(self):
-        self.csock.connect(self.path)
+    def c_sock(self):
+        csock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        csock.setblocking(False)
+        return csock
+    
+    def c_connect(self, csock):
+        csock.connect(self.path)
+
+    def c_isconnected(self, csock, testmsg="testmsg"):
+        (rlist, wlist, xlist) = select.select([], [csock], [], 0.0)
+        if csock in wlist:
+            try:
+                csock.send(testmsg)
+                return True
+            except IOError as e:
+                return False
+        else:
+            return False
 
     def test_start(self):
         self.server.start()
+        csock = self.c_sock()
+        self.c_connect(csock)
+        loop.loop(pyev.EVLOOP_ONESHOT)
+        self.assertTrue(self.c_isconnected(csock))
 
     def test_stop(self):
         self.server.start()
+        csock = self.c_sock()
+        self.c_connect(csock)
+        loop.loop(pyev.EVLOOP_ONESHOT)
+        self.assertTrue(self.c_isconnected(csock))
         self.server.stop()
+        loop.loop(pyev.EVLOOP_ONESHOT)
+        self.assertTrue(self.c_isconnected(csock))
+        csock.close()
+        csock = None
+        loop.loop(pyev.EVLOOP_NONBLOCK)
+        csock = self.c_sock()
+        self.c_connect(csock)
+        self.assertTrue(self.factory.builds == 1)
 
 if __name__ == '__main__':
     unittest.main()

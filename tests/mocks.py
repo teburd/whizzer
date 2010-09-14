@@ -18,6 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import sys
+
+sys.path.insert(0, "..")
+
 import whizzer
 
 class MockLogger(object):
@@ -28,32 +32,36 @@ class MockLogger(object):
         self.infos = []
 
     def warn(self, message):
+        print("warn: " + message)
         self.warns.append(message)
 
     def info(self, message):
+        print("info: " + message)
         self.infos.append(message)
 
     def debug(self, message):
+        print("debug: " + message)
         self.debugs.append(message)
 
     def error(self, message):
+        print("error: " + message)
         self.errors.append(message)
 
 class MockProtocol(whizzer.Protocol):
-    def __init__(self):
-        protocol.Protocol.__init__(self, loop)
+    def __init__(self, loop):
+        whizzer.Protocol.__init__(self, loop)
         self.reads = 0
         self.errors = 0
         self.connections = 0
         self.losses = 0
         self.connected = False
         self.transport = None
-        self.data = []
+        self._data = []
         self.reason = None
 
     def data(self, d):
         self.reads += 1
-        self.data = d
+        self._data.append(d)
         print("reads " + str(self.reads))
 
     def connection_made(self):
@@ -72,7 +80,7 @@ class MockFactory(whizzer.ProtocolFactory):
 
     def build(self, loop):
         self.builds += 1
-        print("building protocol")
-        return protocol(loop)
+        print("builds " + str(self.builds))
+        return self.protocol(loop)
 
 

@@ -107,6 +107,7 @@ class SocketServer(object):
         """
         if self._shutdown:
             raise ShutdownError()
+
         self.read_watcher.stop()
         self.logger.info("server stopped")
 
