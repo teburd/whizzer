@@ -26,25 +26,21 @@ import pyev
 sys.path.insert(0, '..')
 
 from whizzer.protocol import Protocol, ProtocolFactory
-from whizzer.client import TcpClient, UnixClient
 from mocks import *
 from common import loop
 
-class TestClientCreation(unittest.TestCase):
-    def test_tcp_client(self):
-        factory = ProtocolFactory()
-        factory.protocol = Protocol
-        client = TcpClient(loop, MockFactory(), "0.0.0.0", 2000)
+class TestProtocol(unittest.TestCase):
+    def test_protocol(self):
+        protocol = Protocol(loop) 
     
-    def test_unix_client(self):
+    def test_factory(self):
+        factory = ProtocolFactory()
+
+    def test_factory_build(self):
         factory = ProtocolFactory()
         factory.protocol = Protocol
-        client = UnixClient(loop, MockFactory(), "bogus")
-
-        
-class TestUnixClient(unittest.TestCase):
-    """Functional test for UnixClient."""
-    pass
+        p = factory.build(loop)
+        self.assertTrue(isinstance(p, Protocol))
 
 if __name__ == '__main__':
     unittest.main()
