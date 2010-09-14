@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,6 +19,7 @@
 # THE SOFTWARE.
 
 
+import gc
 import os
 import sys
 import socket
@@ -28,35 +28,51 @@ import pyev
 
 sys.path.insert(0, "..")
 
-from whizzer import server, protocol
+from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.server import UnixServer, TcpServer
+from mocks import *
+from common import loop
 
-loop = pyev.default_loop()
+class TestServerCreation(unittest.TestCase):
+    def test_tcp_server(self):
+        factory = ProtocolFactory()
+        factory.protocol = Protocol
+        server = TcpServer(loop, factory, "0.0.0.0", 2000)
+        server = None
 
-class FakeProtocol(protocol.Protocol):
-    def __init__(self):
-        protocol.Protocol.__init__(self, loop)
-        self.reads = 0
-        self.errors = 0
-        self.connections = 0
-        self.losses = 0
-        self.connected = False
-        self.transport = None
-        self.data = []
-        self.reason = None
+    def test_unix_server(self):
+        factory = ProtocolFactory()
+        factory.protocol = Protocol
+        server = UnixServer(loop, factory, "bogus")
+        server = None
+        # path should be cleaned up as soon as garbage collected
+        gc.collect()
+        self.assertTrue(not os.path.exists("bogus"))
 
-    def data(self, d):
-        self.reads += 1
-        self.data = d
-        print("reads " + str(self.reads))
+class TestUnixServer(unittest.TestCase):
+    def setUp(self):
+        self.logger = MockLogger()
+        self.factory = MockFactory()
+        self.factory.protocl = MockProtocol
+        self.path = "test"
+        self.server = UnixServer(loop, self.factory, self.path, logger=self.logger)
+        self.csock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
-    def connection_made(self):
-        self.connections += 1
-        print("connections " + str(self.connections))
+    def tearDown(self):
+        self.logger = None
+        self.factory = None
+        self.server = None
+        gc.collect()
 
-    def connection_lost(self, reason=None):
-        self.losses += 1
-        self.reason = reason
-        print("losses " + str(self.losses))
+    def cconnect(self):
+        self.csock.connect(self.path)
+
+    def test_start(self):
+        self.server.start()
+
+    def test_stop(self):
+        self.server.start()
+        self.server.stop()
 
 if __name__ == '__main__':
     unittest.main()

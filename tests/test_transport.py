@@ -26,11 +26,10 @@ import socket
 import unittest
 import pyev
 
-loop = pyev.default_loop()
-
 sys.path.insert(0, "..")
 
 from whizzer.transport import SocketTransport, ConnectionClosed, BufferOverflowError
+from common import loop
 
 class TestSocketTransport(unittest.TestCase):
     def setUp(self):

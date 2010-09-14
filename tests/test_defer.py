@@ -26,9 +26,9 @@ sys.path.insert(0, '..')
 import unittest
 import pyev
 
-loop = pyev.default_loop()
-
 from whizzer.defer import Deferred, CancelledError, AlreadyCalledError, TimeoutError
+
+from common import loop
 
 def throw_always(result):
     raise Exception("success")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,33 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import sys
-import time
-import unittest
 import pyev
 
-sys.path.insert(0, '..')
+loop = None
 
-from whizzer.protocol import Protocol, ProtocolFactory
-from whizzer.client import TcpClient, UnixClient
-from mocks import *
-from common import loop
-
-class TestClientCreation(unittest.TestCase):
-    def test_tcp_client(self):
-        factory = ProtocolFactory()
-        factory.protocol = Protocol
-        client = TcpClient(loop, MockFactory(), "0.0.0.0", 2000)
-    
-    def test_unix_client(self):
-        factory = ProtocolFactory()
-        factory.protocol = Protocol
-        client = UnixClient(loop, MockFactory(), "bogus")
-
-        
-class TestUnixClient(unittest.TestCase):
-    """Functional test for UnixClient."""
-    pass
-
-if __name__ == '__main__':
-    unittest.main()
+if not loop:
+    loop = pyev.default_loop()

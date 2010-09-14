@@ -161,10 +161,24 @@ class SocketServer(object):
             self.connections.remove(connection)
             self.logger.info("removed connection")
 
+class _PathRemoval(object):
+    """Remove a path when the object dies.
+        
+    Used by UnixServer so that a __del__ method is not needed for UnixServer.
+
+    """
+    def __init__(self, path):
+        self.path = path
+
+    def __del__(self):
+        if os.path.exists(self.path):
+            os.remove(self.path)
+
 class UnixServer(SocketServer):
     """A unix server is a socket server that listens on a domain socket."""
     def __init__(self, loop, factory, path, conn_limit=5, logger=logging):
         self.path = path
+        self.path_removal = _PathRemoval(self.path)
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.bind(path)
         self.sock.listen(conn_limit)
