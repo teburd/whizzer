@@ -26,6 +26,7 @@ import logging
 import pyev
 
 from .transport import SocketTransport, ConnectionClosed
+from .defer import Deferred
 
 class Connection(object):
     """Represents a connection to a server from a client."""
@@ -63,6 +64,7 @@ class SocketClient(object):
         self.factory = factory
         self.logger = logger
         self.connection = None
+        self.connect_deferreds = []
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop,
                                           self._interrupt)
         self.sigint_watcher.start()
@@ -78,7 +80,7 @@ class SocketClient(object):
         self.connect_deferreds.append(d)
 
         self.sock = sock
-        self.connect_watcher = pyev.Io(self.sock, pyev.EV_READ, self.loop, self._connected)
+        self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
         self.connect_watcher.start()
 
         return d
@@ -89,7 +91,7 @@ class SocketClient(object):
         self.connect_watcher.stop()
         self.connect_watcher = None
         protocol = self.factory.build(self.loop)
-        self.connection = Connection(self.loop, sock, protocol, self,
+        self.connection = Connection(self.loop, self.sock, protocol, self,
                                      self.logger)
         
         for d in self.connect_deferreds:
