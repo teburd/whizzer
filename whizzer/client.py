@@ -64,7 +64,7 @@ class SocketClient(object):
         self.factory = factory
         self.logger = logger
         self.connection = None
-        self.connect_deferreds = []
+        self.connect_deferred = None
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop,
                                           self._interrupt)
         self.sigint_watcher.start()
@@ -73,18 +73,22 @@ class SocketClient(object):
         if self.connection:
             self.connection.close()
 
-    def _connect(self, sock):
+    def _connect(self, sock, connect_arg):
         """Start watching the socket for it to be writtable."""
         
+        self.logger.info("connecting to " + str(connect_arg))
         d = Deferred(self.loop)
-        self.connect_deferreds.append(d)
+        self.connect_deferred = d
 
-        self.sock = sock
-        self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
-        self.connect_watcher.start()
+        try:
+            sock.connect(connect_arg)
+            self.sock = sock
+            self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
+            self.connect_watcher.start()
+        except Exception as e:
+            d.errback(e)
 
         return d
-
 
     def _connected(self, watcher, events):
         """When the socket is writtable, the socket is ready to be used."""
@@ -94,9 +98,8 @@ class SocketClient(object):
         self.connection = Connection(self.loop, self.sock, protocol, self,
                                      self.logger)
         
-        for d in self.connect_deferreds:
-            d.callback(protocol)
- 
+        self.logger.info("connected")
+        self.connect_deferred.callback(protocol)
 
     def _disconnect(self):
         """Disconnect from a socket."""
@@ -122,9 +125,7 @@ class UnixClient(SocketClient):
 
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.connect(self.path)
-        self.logger.info("connected")
-        return self._connect(sock)
+        return self._connect(sock, self.path)
 
     def disconnect(self):
         return self._disconnect()
@@ -139,9 +140,7 @@ class TcpClient(SocketClient):
 
     def connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((self.host, self.port))
-        self.logger.info("connected")
-        return self._connect(sock)
+        return self._connect(sock, (self.host, self.port))
 
     def disconnect(self):
         return self._disconnect()
