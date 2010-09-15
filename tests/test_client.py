@@ -18,13 +18,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import os
 import sys
 import time
 import unittest
+import socket
+
 import pyev
 
 sys.path.insert(0, '..')
 
+from whizzer.defer import Deferred
 from whizzer.protocol import Protocol, ProtocolFactory
 from whizzer.client import TcpClient, UnixClient
 from mocks import *
@@ -40,11 +44,41 @@ class TestClientCreation(unittest.TestCase):
         factory = ProtocolFactory()
         factory.protocol = Protocol
         client = UnixClient(loop, MockFactory(), "bogus")
-
         
 class TestUnixClient(unittest.TestCase):
     """Functional test for UnixClient."""
-    pass
+    def setUp(self):
+        self.path = "test"
+        self.ssock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.ssock.bind(self.path)
+        self.ssock.listen(5)
+        
+        self.factory = MockFactory()
+        self.factory.protocol = MockProtocol
+        self.client = UnixClient(loop, self.factory, self.path)
+
+        self._connected = False
+
+    def tearDown(self):
+        self.ssock.close()
+        os.remove(self.path)
+        self.client = None
+        self.factory = None
+        self.ssock = None
+    
+        self._connected = False
+    
+    def connected(self, protocol):
+        self.assertTrue(isinstance(protocol, MockProtocol))
+        self._connected = True
+
+
+    def test_connect(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        
 
 if __name__ == '__main__':
     unittest.main()
