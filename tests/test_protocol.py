@@ -42,5 +42,17 @@ class TestProtocol(unittest.TestCase):
         p = factory.build(loop)
         self.assertTrue(isinstance(p, Protocol))
 
+    def test_lose_connection(self):
+        factory = ProtocolFactory()
+        factory.protocol = Protocol
+        p = factory.build(loop)
+        self.assertTrue(isinstance(p, Protocol))
+        t = MockTransport()
+        p.make_connection(t)
+        p.lose_connection()
+        self.assertTrue(t.closes==1)
+        
+
+
 if __name__ == '__main__':
     unittest.main()

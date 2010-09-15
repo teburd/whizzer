@@ -291,9 +291,6 @@ class Deferred(object):
                     self._result = e
                     self._tb_info = traceback.format_exc()
 
-        if self._cancelled:
-            raise CancelledError()
-        
         if self._exception:
             self._last_exception.exception = self._result
             self._last_exception.tb_info = self._tb_info

@@ -24,6 +24,19 @@ sys.path.insert(0, "..")
 
 import whizzer
 
+class MockTransport(object):
+    def __init__(self):
+        self.closes = 0
+        self.writes = 0
+
+    def close(self):
+        print("close")
+        self.closes += 1
+
+    def write(self):
+        print("write")
+        self.writes += 1
+
 class MockLogger(object):
     def __init__(self):
         self.warns = []

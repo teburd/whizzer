@@ -187,8 +187,5 @@ class TestDeferred(unittest.TestCase):
         t2 = self.call_later(0.2, self.deferred.cancel)
         self.assertRaises(CancelledError, self.deferred.result, 0.3)
 
-
-
-
 if __name__ == '__main__':
     unittest.main()
