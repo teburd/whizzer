@@ -52,10 +52,11 @@ class TestUnixClient(unittest.TestCase):
         self.ssock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.ssock.bind(self.path)
         self.ssock.listen(5)
-        
+      
+        self.logger = MockLogger()
         self.factory = MockFactory()
         self.factory.protocol = MockProtocol
-        self.client = UnixClient(loop, self.factory, self.path)
+        self.client = UnixClient(loop, self.factory, self.path, logger=self.logger)
 
         self._connected = False
 
@@ -70,15 +71,108 @@ class TestUnixClient(unittest.TestCase):
     
     def connected(self, protocol):
         self.assertTrue(isinstance(protocol, MockProtocol))
+        self.protocol = protocol
         self._connected = True
-
 
     def test_connect(self):
         d = self.client.connect()
         self.assertTrue(isinstance(d, Deferred))
         d.add_callback(self.connected)
         (csock, addr) = self.ssock.accept()
+
+    def test_lose_connection(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        d.result()
+        self.protocol.lose_connection()
+        self.assertTrue(len(self.logger.infos))
+     
+    def test_interrupt(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        d.result()
+        self.client._interrupt(None, None)
+        self.assertTrue(self.client.connection is None)
+
+    def test_disconnect(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        d.result()
+        self.client.disconnect()
+        self.assertTrue(self.client.connection is None)
+
+class TestTcpClient(unittest.TestCase):
+    """Functional test for TcpClient."""
+    def setUp(self):
+        self.port = 6000
+        self.ssock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        while True:
+            try:
+                self.ssock.bind(("0.0.0.0", self.port))
+                break
+            except IOError as e:
+                self.port += 1
         
+        self.ssock.listen(5)
+      
+        self.logger = MockLogger()
+        self.factory = MockFactory()
+        self.factory.protocol = MockProtocol
+        self.client = TcpClient(loop, self.factory, "0.0.0.0", self.port, logger=self.logger)
+        self._connected = False
+
+    def tearDown(self):
+        self.ssock.close()
+        self.client = None
+        self.factory = None
+        self.ssock = None
+        self._connected = False
+    
+    def connected(self, protocol):
+        self.assertTrue(isinstance(protocol, MockProtocol))
+        self.protocol = protocol
+        self._connected = True
+
+    def test_connect(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+
+    def test_lose_connection(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        d.result()
+        self.protocol.lose_connection()
+        self.assertTrue(len(self.logger.infos))
+     
+    def test_interrupt(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        d.result()
+        self.client._interrupt(None, None)
+        self.assertTrue(self.client.connection is None)
+
+    def test_disconnect(self):
+        d = self.client.connect()
+        self.assertTrue(isinstance(d, Deferred))
+        d.add_callback(self.connected)
+        (csock, addr) = self.ssock.accept()
+        d.result()
+        self.client.disconnect()
+        self.assertTrue(self.client.connection is None)
+
 
 if __name__ == '__main__':
     unittest.main()
