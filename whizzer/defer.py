@@ -59,6 +59,7 @@
 
 import logging
 import traceback
+import signal
 import pyev
 
 """An implementation of Twisted Deferred class and helpers with some add ons
@@ -193,8 +194,13 @@ class Deferred(object):
         """Return the last result of the callback chain or raise the last
         exception thrown and not caught by an errback.
 
-        This will block until the result is available or raise a TimeoutError
-        given a timeout.
+        This will block until the result is available.
+        
+        If a timeout is given and the call times out raise a TimeoutError
+
+        If SIGINT is caught while waiting raises CancelledError.
+
+        If cancelled while waiting raises CancelledError
 
         This acts much like a pythonfutures.Future.result() call
         except the entire callback processing chain is performed first.
@@ -236,6 +242,9 @@ class Deferred(object):
 
         if not self._done:
             self._wait = True
+            
+            self._sigint = pyev.Signal(signal.SIGINT, self.loop, lambda watcher, events: self.cancel(), None)
+            self._sigint.start()
 
             if timeout and timeout > 0.0:
                 self._timer = pyev.Timer(timeout, 0.0, self.loop,
