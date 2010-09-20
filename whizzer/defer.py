@@ -210,6 +210,8 @@ class Deferred(object):
         self._do_wait(timeout)
 
         if self._exception:
+            self._last_exception.exception = None
+            self._last_exception.tb_info = None
             raise self._result
         else:
             return self._result
@@ -218,7 +220,9 @@ class Deferred(object):
         """Cancel the deferred."""
         if self.called:
             raise AlreadyCalledError()
+        self._cancel()
 
+    def _cancel(self):
         if not self._cancelled:
             self._cancelled = True
             if self._cancelled_cb:
@@ -243,7 +247,7 @@ class Deferred(object):
         if not self._done:
             self._wait = True
             
-            self._sigint = pyev.Signal(signal.SIGINT, self.loop, lambda watcher, events: self.cancel(), None)
+            self._sigint = pyev.Signal(signal.SIGINT, self.loop, lambda watcher, events: self._cancel(), None)
             self._sigint.start()
 
             if timeout and timeout > 0.0:
