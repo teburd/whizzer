@@ -19,10 +19,17 @@ def signal_handler(loop):
     return watcher
 
 def _perform_call(watcher, events):
-    (method, args, kwargs) = watcher.data
+    print("performing call")
+    (d, method, args, kwargs) = watcher.data
+    try:
+        d.callback(method(*args, **kwargs))
+    except Exception as e:
+        d.errback(e)
 
-def call_later(loop, delay, method, *args, **kwargs):
+def call_later(loop, logger, delay, method, *args, **kwargs):
     """Convienence method to create a timed function call."""
-    t = pyev.Timer(delay, 0.0, loop, _perform_call, (method, args, kwargs))
+    d = Deferred(loop, logger=logger)
+    t = pyev.Timer(delay, 0.0, loop, _perform_call, (d, method, args, kwargs))
     t.start()
-    return t
+    d.timer = t
+    return d
