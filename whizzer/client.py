@@ -77,7 +77,7 @@ class SocketClient(object):
         """Start watching the socket for it to be writtable."""
         
         self.logger.info("connecting to " + str(connect_arg))
-        d = Deferred(self.loop)
+        d = Deferred(self.loop, logger=self.logger)
         self.connect_deferred = d
 
         try:
