@@ -23,6 +23,6 @@ def _perform_call(watcher, events):
 
 def call_later(loop, delay, method, *args, **kwargs):
     """Convienence method to create a timed function call."""
-    t = pyev.Timer(delay, 0.0, loop, (method, args, kwargs))
+    t = pyev.Timer(delay, 0.0, loop, _perform_call, (method, args, kwargs))
     t.start()
     return t
