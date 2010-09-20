@@ -19,7 +19,6 @@ def signal_handler(loop):
     return watcher
 
 def _perform_call(watcher, events):
-    print("performing call")
     (d, method, args, kwargs) = watcher.data
     try:
         d.callback(method(*args, **kwargs))
