@@ -106,13 +106,12 @@ class LastException(object):
 
     def __del__(self):
         if self.exception:
+
+            self.logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
             if self.tb_info:
-                print "using tb info"
-                print self.tb_info
-                self.logger.error(str(self.tb_info))
+                self.logger.error("Traceback: \n" + str(self.tb_info))
             else:
-                print "using exception"
-                self.logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
+                self.logger.error("Traceback: Unavailable")
 
         self.logger = None
         self.exception = None
@@ -282,6 +281,8 @@ class Deferred(object):
 
         self._result = result
         self._exception = exception
+        if self._exception:
+            self._tb_info = ''.join(traceback.format_tb(sys.exc_info()[2])) 
         self.called = True
         self._do_callbacks()
 
@@ -298,7 +299,7 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = True
                     self._result = e
-                    self._tb_info = sys.exc_info()
+                    self._tb_info = ''.join(traceback.format_tb(sys.exc_info()[2]))
             elif eb and self._exception:
                 try:
                     self._result = eb(self._result, *eb_args, **eb_kwargs)
@@ -306,7 +307,7 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = True
                     self._result = e
-                    self._tb_info = sys.exc_info()
+                    self._tb_info = ''.join(traceback.format_tb(sys.exc_info()[2]))
 
 
         if self._exception:
@@ -317,6 +318,3 @@ class Deferred(object):
             self._last_exception.tb_info = None
         
         self._done = True
-
-
-
