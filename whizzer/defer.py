@@ -318,3 +318,16 @@ class Deferred(object):
             self._last_exception.tb_info = None
         
         self._done = True
+
+
+class DeferredList(Deferred):
+    def __init__(self, loop, cancelled_cb=None, logger=logging):
+        Deferred.__init__(loop, cancelled_cb, logger)
+        self._deferreds = set()
+
+    def add(self, deferred):
+        self._deferreds.add(deferred)
+        deferred.add_callback(self._markoff, deferred)
+
+    def _markoff(self, deferred):
+        self._deferreds.remove(deferred)
