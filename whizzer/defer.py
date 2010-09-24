@@ -60,6 +60,7 @@
 import logging
 import traceback
 import signal
+import sys
 import pyev
 
 """An implementation of Twisted Deferred class and helpers with some add ons
@@ -106,8 +107,11 @@ class LastException(object):
     def __del__(self):
         if self.exception:
             if self.tb_info:
+                print "using tb info"
+                print self.tb_info
                 self.logger.error(str(self.tb_info))
             else:
+                print "using exception"
                 self.logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
 
         self.logger = None
@@ -294,7 +298,7 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = True
                     self._result = e
-                    self._tb_info = traceback.format_exc()
+                    self._tb_info = sys.exc_info()
             elif eb and self._exception:
                 try:
                     self._result = eb(self._result, *eb_args, **eb_kwargs)
@@ -302,7 +306,8 @@ class Deferred(object):
                 except Exception as e:
                     self._exception = True
                     self._result = e
-                    self._tb_info = traceback.format_exc()
+                    self._tb_info = sys.exc_info()
+
 
         if self._exception:
             self._last_exception.exception = self._result
