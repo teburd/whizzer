@@ -125,7 +125,7 @@ class Deferred(object):
 
     """
 
-    def __init__(self, loop, cancelled_cb=None, logger=logging):
+    def __init__(self, loop, logger=logging, cancelled_cb=None):
         """Deferred.
 
         loop -- a pyev loop instance
