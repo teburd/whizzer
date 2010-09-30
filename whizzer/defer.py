@@ -311,12 +311,13 @@ class Deferred(object):
 
 
         if self._exception:
+            self.logger.warn('Unhandled Exception: ' + str(self._result))
             self._last_exception.exception = self._result
             self._last_exception.tb_info = self._tb_info
         else:
             self._last_exception.exception = None
             self._last_exception.tb_info = None
-        
+
         self._done = True
 
 
