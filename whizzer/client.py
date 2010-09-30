@@ -76,7 +76,7 @@ class SocketClient(object):
     def _connect(self, sock, connect_arg):
         """Start watching the socket for it to be writtable."""
         
-        self.logger.info("connecting to " + str(connect_arg))
+        self.logger.debug("connecting to " + str(connect_arg))
         self.connect_arg = connect_arg
         d = Deferred(self.loop, logger=self.logger)
         self.connect_deferred = d
