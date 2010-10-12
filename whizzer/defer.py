@@ -125,6 +125,8 @@ class Deferred(object):
 
     """
 
+    warnings = False
+
     def __init__(self, loop, logger=logging, cancelled_cb=None):
         """Deferred.
 
@@ -311,7 +313,8 @@ class Deferred(object):
 
 
         if self._exception:
-            self.logger.warn('Unhandled Exception: ' + str(self._result))
+            if Deferred.warnings:
+                self.logger.warn('Unhandled Exception: ' + str(self._result))
             self._last_exception.exception = self._result
             self._last_exception.tb_info = self._tb_info
         else:
