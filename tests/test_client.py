@@ -53,10 +53,10 @@ class TestUnixClient(unittest.TestCase):
         self.ssock.bind(self.path)
         self.ssock.listen(5)
       
-        self.log = MockLogger()
+        self.logger = MockLogger()
         self.factory = MockFactory()
         self.factory.protocol = MockProtocol
-        self.client = UnixClient(loop, self.factory, self.path, log=self.log)
+        self.client = UnixClient(loop, self.factory, self.path, logger=self.logger)
 
         self._connected = False
 
@@ -87,7 +87,7 @@ class TestUnixClient(unittest.TestCase):
         (csock, addr) = self.ssock.accept()
         d.result()
         self.protocol.lose_connection()
-        self.assertTrue(len(self.log.infos))
+        self.assertTrue(len(self.logger.infos))
      
     def test_interrupt(self):
         d = self.client.connect()
@@ -122,10 +122,10 @@ class TestTcpClient(unittest.TestCase):
         
         self.ssock.listen(5)
       
-        self.log = MockLogger()
+        self.logger = MockLogger()
         self.factory = MockFactory()
         self.factory.protocol = MockProtocol
-        self.client = TcpClient(loop, self.factory, "0.0.0.0", self.port, log=self.log)
+        self.client = TcpClient(loop, self.factory, "0.0.0.0", self.port, logger=self.logger)
         self._connected = False
 
     def tearDown(self):
@@ -153,7 +153,7 @@ class TestTcpClient(unittest.TestCase):
         (csock, addr) = self.ssock.accept()
         d.result()
         self.protocol.lose_connection()
-        self.assertTrue(len(self.log.infos))
+        self.assertTrue(len(self.logger.infos))
      
     def test_interrupt(self):
         d = self.client.connect()

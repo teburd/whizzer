@@ -22,23 +22,23 @@
 import socket
 import signal
 import logbook
-log = logbook.Logger('whizzer.client')
-
 import pyev
 
 from .transport import SocketTransport, ConnectionClosed
 from .defer import Deferred
 
+logger = logbook.Logger(__name__)
+
 class Connection(object):
     """Represents a connection to a server from a client."""
 
-    def __init__(self, loop, sock, protocol, client, log):
+    def __init__(self, loop, sock, protocol, client, logger):
         """Create a client connection."""
         self.loop = loop
         self.sock = sock
         self.protocol = protocol
         self.client = client
-        self.log = log
+        self.logger = logger
         self.transport = SocketTransport(self.loop, self.sock,
                                          self.protocol.data, self.closed)
         self.protocol.make_connection(self.transport)
@@ -49,9 +49,9 @@ class Connection(object):
         self.client.remove_connection(self)
         self.protocol.connection_lost(reason)
         if not isinstance(reason, ConnectionClosed):
-            self.log.warn("connection closed, reason %s" % str(reason))
+            self.logger.warn("connection closed, reason %s" % str(reason))
         else:
-            self.log.info("connection closed")
+            self.logger.info("connection closed")
 
     def close(self):
         """Close the connection."""
@@ -60,10 +60,10 @@ class Connection(object):
 
 class SocketClient(object):
     """A simple socket client."""
-    def __init__(self, loop, factory, log=log):
+    def __init__(self, loop, factory, logger=logger):
         self.loop = loop
         self.factory = factory
-        self.log = log
+        self.logger = logger
         self.connection = None
         self.connect_deferred = None
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop,
@@ -77,9 +77,9 @@ class SocketClient(object):
     def _connect(self, sock, connect_arg):
         """Start watching the socket for it to be writtable."""
         
-        self.log.debug("connecting to " + str(connect_arg))
+        self.logger.debug("connecting to " + str(connect_arg))
         self.connect_arg = connect_arg
-        d = Deferred(self.loop, log=self.log)
+        d = Deferred(self.loop, logger=self.logger)
         self.connect_deferred = d
 
         try:
@@ -98,9 +98,9 @@ class SocketClient(object):
         self.connect_watcher = None
         protocol = self.factory.build(self.loop)
         self.connection = Connection(self.loop, self.sock, protocol, self,
-                                     self.log)
+                                     self.logger)
         
-        self.log.info("connected to " + str(self.connect_arg))
+        self.logger.info("connected to " + str(self.connect_arg))
         self.connect_deferred.callback(protocol)
 
     def _disconnect(self):
@@ -121,8 +121,8 @@ class SocketClient(object):
 
 class UnixClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, path, log=log):
-        SocketClient.__init__(self, loop, factory, log)
+    def __init__(self, loop, factory, path, logger=logger):
+        SocketClient.__init__(self, loop, factory, logger)
         self.path = path
 
     def connect(self):
@@ -135,8 +135,8 @@ class UnixClient(SocketClient):
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, host, port, log=log):
-        SocketClient.__init__(self, loop, factory, log)
+    def __init__(self, loop, factory, host, port, logger=logger):
+        SocketClient.__init__(self, loop, factory, logger)
         self.host = host
         self.port = port
 

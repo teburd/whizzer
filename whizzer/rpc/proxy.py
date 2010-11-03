@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 import logbook 
-log = logbook.Logger('whizzer.rpc.proxy')
+logger = logbook.Logger('whizzer.rpc.proxy')
 
 from ..defer import Deferred
 
@@ -67,7 +67,7 @@ class Proxy(object):
         used to attach a callback, force waiting for the call, or check for exceptions.
 
         """
-        d = Deferred(self.loop, logger=log)
+        d = Deferred(self.loop, logger=logger)
         d.request = self.request_num
         self.requests[self.request_num] = d
         self.protocol.send_request(d.request, method, args)
