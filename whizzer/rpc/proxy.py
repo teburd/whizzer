@@ -31,13 +31,15 @@ class Proxy(object):
         """MsgPackProxy
 
         loop -- A pyev loop.
-        protocol -- An instance of MsgPackProtocol.
+        protocol -- An instance of RPCProtocol.
 
         """
         self.loop = loop
         self.protocol = protocol
         self.request_num = 0
         self.requests = dict()
+        
+        #: synchronous call() timeout
         self.timeout = None
 
     def call(self, method, *args):
