@@ -25,7 +25,7 @@ class Dispatch(object):
 
     def __init__(self):
         """Instantiate a basic dispatcher."""
-        self.methods = dict()
+        self.functions = dict()
 
     def call(self, function, args):
         """Call a method given some args.
@@ -38,10 +38,7 @@ class Dispatch(object):
         May raise an exception if the method isn't in the dict.
 
         """
-        if function not in self.functions:
-            raise UnknownMethodError("Unknown Method " + method)
-
-        return self.methods[method](*args)
+        return self.functions[function](*args)
 
     def add(self, fn, name=None):
         """Add a function that the dispatcher will know about.
@@ -52,7 +49,21 @@ class Dispatch(object):
         """
         if not name:
             name = fn.__name__
-        self.methods[name] = fn
+        self.functions[name] = fn
+
+def remote(fn, name=None, types=None):
+    """Decorator that adds a remote attribute to a function.
+
+    fn -- function being decorated
+    name -- aliased name of the function, used for remote proxies
+    types -- a argument type specifier, can be used to ensure
+             arguments are of the correct type
+    """
+    if not name:
+        name = fn.__name__
+
+    fn.remote = {"name": name, "types": types}
+    return fn
 
 
 class ObjectDispatch(Dispatch):

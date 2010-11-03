@@ -19,10 +19,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
+import msgpack
+
 from ..protocol import Protocol, ProtocolFactory
 from ..defer import Deferred
 
 from .proxy import Proxy
+from .dispatch import Dispatch
+
 
 class MsgPackProxy(Proxy):
     """A MessagePack-RPC Proxy."""
@@ -126,9 +131,6 @@ class MsgPackProtocol(Protocol):
 
         try:
             result = self.dispatch.call(method, params)
-        except MsgPackError as e:
-            error = e.to_tuple()
-            exception = e
         except Exception as e:
             error = (e.__class__.__name__, str(e))
             exception = e
