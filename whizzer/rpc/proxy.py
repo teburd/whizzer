@@ -40,14 +40,6 @@ class Proxy(object):
         self.requests = dict()
         self.timeout = None
 
-    def set_timeout(self, timeout):
-        """Set the timeout of blocking calls, None means block forever.
-
-        timeout -- seconds after which to raise a TimeoutError for blocking calls.
-
-        """
-        self.timeout = timeout
-
     def call(self, method, *args):
         """Perform a synchronous remote call where the returned value is given immediately.
 
