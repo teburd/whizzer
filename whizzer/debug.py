@@ -21,6 +21,9 @@
 
 import gc
 import pyev
+import logbook
+
+logger = logbook.Logger(__name__)
 
 class ObjectWatcher(object):
     def __init__(self, loop, classes=[]):
@@ -42,6 +45,6 @@ class ObjectWatcher(object):
 
     def print_stats(self, watcher, events):
         gc.collect()
-        print("Object Stats")
+        logger.debug("Object Stats")
         for cls in self.classes:
-            print("    %s : %d" % (cls.__name__, self.count(cls)))
+            logger.debug("    %s : %d" % (cls.__name__, self.count(cls)))

@@ -20,9 +20,11 @@
 # THE SOFTWARE.
 
 import logbook 
-logger = logbook.Logger('whizzer.rpc.proxy')
 
 from ..defer import Deferred
+
+logger = logbook.Logger(__name__)
+
 
 class Proxy(object):
     """Proxy object that performs remote calls."""

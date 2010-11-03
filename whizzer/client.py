@@ -29,6 +29,7 @@ from .defer import Deferred
 
 logger = logbook.Logger(__name__)
 
+
 class Connection(object):
     """Represents a connection to a server from a client."""
 

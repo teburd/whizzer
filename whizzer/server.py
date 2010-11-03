@@ -23,12 +23,12 @@ import os
 import signal
 import socket
 import logbook
-
-logger = logbook.Logger(__name__)
-
 import pyev
 
 from .transport import SocketTransport, ConnectionClosed
+
+logger = logbook.Logger(__name__)
+
 
 class Connection(object):
     """A connection to the server from a remote client."""
