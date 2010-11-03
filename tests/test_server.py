@@ -52,18 +52,18 @@ class TestServerCreation(unittest.TestCase):
 
 class TestUnixServer(unittest.TestCase):
     def setUp(self):
-        self.logger = MockLogger()
+        self.log = MockLogger()
         self.factory = MockFactory()
         self.factory.protocol = MockProtocol
         self.path = "test"
-        self.server = UnixServer(loop, self.factory, self.path, logger=self.logger)
+        self.server = UnixServer(loop, self.factory, self.path, log=self.log)
 
     def tearDown(self):
         self.server.shutdown()
         self.server = None
         self.server = None
         self.factory = None
-        self.logger = None
+        self.log = None
         gc.collect()
 
     def c_sock(self):

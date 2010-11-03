@@ -57,10 +57,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import logging
 import traceback
 import signal
 import sys
+import logbook
+log = logbook.Logger('whizzer.defer')
 import pyev
 
 """An implementation of Twisted Deferred class and helpers with some add ons
@@ -94,26 +95,26 @@ class LastException(object):
     the only sane thing to do is nothing.
     
     """
-    def __init__(self, logger=logging):
+    def __init__(self, log=log):
         """LastException.
 
-        logger -- optional logger object, excepted to have an error method.
+        log -- optional log object, excepted to have an error method.
 
         """
         self.exception = None
         self.tb_info = None
-        self.logger = logger
+        self.log = log
 
     def __del__(self):
         if self.exception:
 
-            self.logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
+            self.log.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
             if self.tb_info:
-                self.logger.error("Traceback: \n" + str(self.tb_info))
+                self.log.error("Traceback: \n" + str(self.tb_info))
             else:
-                self.logger.error("Traceback: Unavailable")
+                self.log.error("Traceback: Unavailable")
 
-        self.logger = None
+        self.log = None
         self.exception = None
         self.tb_info = None
 
@@ -127,18 +128,18 @@ class Deferred(object):
 
     warnings = False
 
-    def __init__(self, loop, logger=logging, cancelled_cb=None):
+    def __init__(self, loop, log=log, cancelled_cb=None):
         """Deferred.
 
         loop -- a pyev loop instance
         cancelled_cb -- an optional callable given this deferred as its
                         argument when cancel() is called.
-        logger -- optional logger object, excepted to have debug() and error()
+        log -- optional log object, excepted to have debug() and error()
                   methods that take strings
 
         """
         self.loop = loop
-        self.logger = logger
+        self.log = log
         self.called = False
         self._done = False
         self._cancelled = False
@@ -148,7 +149,7 @@ class Deferred(object):
         self._exception = False
         self._tb_info = None
         self._callbacks = []
-        self._last_exception = LastException(self.logger)
+        self._last_exception = LastException(self.log)
 
     def add_callbacks(self, callback, errback=None, callback_args=None,
                       callback_kwargs=None, errback_args=None,
@@ -314,7 +315,7 @@ class Deferred(object):
 
         if self._exception:
             if Deferred.warnings:
-                self.logger.warn('Unhandled Exception: ' + str(self._result))
+                self.log.warn('Unhandled Exception: ' + str(self._result))
             self._last_exception.exception = self._result
             self._last_exception.tb_info = self._tb_info
         else:
@@ -325,8 +326,8 @@ class Deferred(object):
 
 
 class DeferredList(Deferred):
-    def __init__(self, loop, cancelled_cb=None, logger=logging):
-        Deferred.__init__(loop, cancelled_cb, logger)
+    def __init__(self, loop, cancelled_cb=None, log=log):
+        Deferred.__init__(loop, cancelled_cb, log)
         self._deferreds = set()
 
     def add(self, deferred):

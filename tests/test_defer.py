@@ -61,8 +61,8 @@ class FakeLogger(object):
 
 class TestDeferred(unittest.TestCase):
     def setUp(self):
-        self.logger = FakeLogger()
-        self.deferred = Deferred(loop, logger=self.logger)
+        self.log = FakeLogger()
+        self.deferred = Deferred(loop, log=self.log)
         self.result = None
 
     def tearDown(self):
@@ -103,8 +103,8 @@ class TestDeferred(unittest.TestCase):
         self.deferred.callback(None)
         self.deferred = None # delete it
 
-        print("error msg " + self.logger.error_msg)
-        self.assertTrue(self.logger.error_msg != "")
+        print("error msg " + self.log.error_msg)
+        self.assertTrue(self.log.error_msg != "")
 
     def test_errback(self):
         self.deferred.add_errback(self.set_result)

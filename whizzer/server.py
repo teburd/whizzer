@@ -22,7 +22,9 @@
 import os
 import signal
 import socket
-import logging
+import logbook
+
+log = logbook.Logger('whizzer.server')
 
 import pyev
 
@@ -30,13 +32,13 @@ from .transport import SocketTransport, ConnectionClosed
 
 class Connection(object):
     """A connection to the server from a remote client."""
-    def __init__(self, loop, sock, protocol, server, logger):
+    def __init__(self, loop, sock, protocol, server, log):
         """Create a server connection."""
         self.loop = loop
         self.sock = sock
         self.protocol = protocol
         self.server = server
-        self.logger = logger
+        self.log = log
         self.transport = SocketTransport(self.loop, self.sock, self.protocol.data, self.closed)
 
     def make_connection(self):
@@ -48,9 +50,9 @@ class Connection(object):
         self.server.remove_connection(self)
         self.protocol.connection_lost(reason)
         if not isinstance(reason, ConnectionClosed):
-            self.logger.warn("connection closed, reason: %s" % str(reason))
+            self.log.warn("connection closed, reason: %s" % str(reason))
         else:
-            self.logger.info("connection closed")
+            self.log.info("connection closed")
 
     def close(self):
         """Close the connection."""
@@ -63,7 +65,7 @@ class ShutdownError(Exception):
 
 class SocketServer(object):
     """A socket server."""
-    def __init__(self, loop, factory, sock, logger=logging):
+    def __init__(self, loop, factory, sock, log=log):
         """Socket server listens on a given socket for incoming connections.
         When a new connection is available it accepts it and creates a new
         Connection and Protocol to handle reading and writting data.
@@ -71,13 +73,13 @@ class SocketServer(object):
         loop -- pyev loop
         factory -- protocol factory (object with build(loop) method that returns a protocol object)
         sock -- socket to listen on
-        logger -- logging.log object used to log server events, most of which are info()
+        log -- log.log object used to log server events, most of which are info()
 
         """
         self.loop = loop
         self.factory = factory
         self.sock = sock
-        self.logger = logger
+        self.log = log
         self.connections = set()
         self._closing = False
         self._shutdown = False
@@ -95,7 +97,7 @@ class SocketServer(object):
             raise ShutdownError()
 
         self.read_watcher.start()
-        self.logger.info("server started")
+        self.log.info("server started")
 
     def stop(self):
         """Stop the socket server.
@@ -109,7 +111,7 @@ class SocketServer(object):
             raise ShutdownError()
 
         self.read_watcher.stop()
-        self.logger.info("server stopped")
+        self.log.info("server stopped")
 
     def shutdown(self, reason = ConnectionClosed()):
         """Shutdown the socket server.
@@ -130,9 +132,9 @@ class SocketServer(object):
         self.connections = set()
         self._shutdown = True
         if isinstance(reason, ConnectionClosed):
-            self.logger.info("server shutdown")
+            self.log.info("server shutdown")
         else:
-            self.logger.warn("server shutdown, reason %s" % str(reason))
+            self.log.warn("server shutdown, reason %s" % str(reason))
 
     def _interrupt(self, watcher, events):
         """Handle the interrupt signal sanely."""
@@ -149,10 +151,10 @@ class SocketServer(object):
         protocol = self.factory.build(self.loop)
         try:
             sock, addr = self.sock.accept()
-            connection = Connection(self.loop, sock, protocol, self, self.logger)
+            connection = Connection(self.loop, sock, protocol, self, self.log)
             self.connections.add(connection)
             connection.make_connection()
-            self.logger.debug("added connection")
+            self.log.debug("added connection")
         except IOError as e:
             self.shutdown(e)
 
@@ -160,7 +162,7 @@ class SocketServer(object):
         """Called by the connections themselves when they have been closed."""
         if not self._closing:
             self.connections.remove(connection)
-            self.logger.debug("removed connection")
+            self.log.debug("removed connection")
 
 class _PathRemoval(object):
     """Remove a path when the object dies.
@@ -177,14 +179,14 @@ class _PathRemoval(object):
 
 class UnixServer(SocketServer):
     """A unix server is a socket server that listens on a domain socket."""
-    def __init__(self, loop, factory, path, conn_limit=5, logger=logging):
+    def __init__(self, loop, factory, path, conn_limit=5, log=log):
         self.path = path
         self.path_removal = _PathRemoval(self.path)
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.bind(path)
         self.sock.listen(conn_limit)
         self.sock.setblocking(False)
-        SocketServer.__init__(self, loop, factory, self.sock, logger)
+        SocketServer.__init__(self, loop, factory, self.sock, log)
 
     def shutdown(self):
         """Shutdown the socket unix socket server ensuring the unix socket is
@@ -203,9 +205,9 @@ class UnixServer(SocketServer):
 
 class TcpServer(SocketServer):
     """A tcp server is a socket server that listens on a internet socket."""
-    def __init__(self, loop, factory, host, port, conn_limit=5, logger=logging):
+    def __init__(self, loop, factory, host, port, conn_limit=5, log=log):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((host, port))
         self.sock.listen(conn_limit)
         self.sock.setblocking(False)
-        SocketServer.__init__(self, loop, factory, self.sock, logger)
+        SocketServer.__init__(self, loop, factory, self.sock, log)
