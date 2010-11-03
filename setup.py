@@ -41,6 +41,6 @@ setup(name='whizzer',
       author_email='thomas.burdick@gmail.com',
       url='http://bitbucket.org/bfrog/whizzer',
       packages=find_packages(),
-      install_requires=['pyev'],
+      install_requires=['pyev>=0.6'],
       classifiers=CLASSIFIERS,
      )
