@@ -23,6 +23,6 @@ after = time.time()
 
 diff = after-before
 
-ips = loop.count()/diff
+ips = loop.iteration/diff
 
 print("iterations per second: %f" % ips)
