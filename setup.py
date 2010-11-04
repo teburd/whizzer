@@ -35,7 +35,7 @@ Topic :: Internet
 
 
 setup(name='whizzer',
-      version='0.3.3',
+      version='0.4.0',
       description='Fast event driven socket server framework based on pyev',
       author='Tom Burdick',
       author_email='thomas.burdick@gmail.com',
