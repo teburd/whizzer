@@ -179,12 +179,12 @@ class _PathRemoval(object):
 
 class UnixServer(SocketServer):
     """A unix server is a socket server that listens on a domain socket."""
-    def __init__(self, loop, factory, path, conn_limit=5, logger=logger):
+    def __init__(self, loop, factory, path, backlog=256, logger=logger):
         self.path = path
         self.path_removal = _PathRemoval(self.path)
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.bind(path)
-        self.sock.listen(conn_limit)
+        self.sock.listen(backlog)
         self.sock.setblocking(False)
         SocketServer.__init__(self, loop, factory, self.sock, logger)
 
@@ -205,9 +205,9 @@ class UnixServer(SocketServer):
 
 class TcpServer(SocketServer):
     """A tcp server is a socket server that listens on a internet socket."""
-    def __init__(self, loop, factory, host, port, conn_limit=5, logger=logger):
+    def __init__(self, loop, factory, host, port, backlog=256, logger=logger):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.bind((host, port))
-        self.sock.listen(conn_limit)
+        self.sock.listen(backlog)
         self.sock.setblocking(False)
         SocketServer.__init__(self, loop, factory, self.sock, logger)
