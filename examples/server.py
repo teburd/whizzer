@@ -20,17 +20,16 @@
 # THE SOFTWARE.
 
 import sys
-import time
-import signal
-import logging
+import logbook
 
 import pyev
-import cProfile
-import pstats
 
 sys.path.insert(0, '..')
 
 import whizzer
+
+
+logger = logbook.Logger('echo server')
 
 class EchoProtocol(whizzer.Protocol):
     def data(self, data):
@@ -40,16 +39,12 @@ class EchoProtocol(whizzer.Protocol):
 if __name__ == "__main__":
     loop = pyev.default_loop()
     
-    logger = logging.getLogger('echo_server')
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
-
     signal_handler = whizzer.signal_handler(loop)
    
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoProtocol
 
-    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
+    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000, logger=logger)
 
     signal_handler.start()
     server.start()

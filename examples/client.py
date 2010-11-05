@@ -20,13 +20,15 @@
 # THE SOFTWARE.
 
 import sys
-import signal
-import logging
+import logbook
 import pyev
 
 sys.path.insert(0, '..')
 
 import whizzer
+
+
+logger = logbook.Logger('echo_client')
 
 class EchoClientProtocol(whizzer.Protocol):
     def connection_made(self):
@@ -41,20 +43,55 @@ class EchoClientProtocol(whizzer.Protocol):
 def interrupt(watcher, events):
     watcher.loop.unloop()
 
-if __name__ == "__main__":
-    loop = pyev.default_loop()
 
-    logger = logging.getLogger('echo_client')
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
+class Client(object):
+    count = 0
+    def __init__(self, loop, factory):
+        Client.count += 1
+        self.logger = logbook.Logger('client {}'.format(Client.count))
+        self.loop = loop
+        self.factory = factory
+        self.client = None
+        self.connect()
+
+    def connect(self):
+        self.client = whizzer.TcpClient(self.loop, self.factory, "127.0.0.1",
+            2000, logger=self.logger)
+        d = self.client.connect()
+        d.add_callback(self.connected)
+        d.add_errback(self.disconnected)
+
+    def connected(self, result):
+        logger.info('connected')
+        self.timer = pyev.Timer(0.001, 0.0, self.loop,
+            lambda watcher, event: self.connect())
+        self.timer.start()
+
+    def disconnected(self, result):
+        logger.error('failed to connect')
+        self.timer = pyev.Timer(0.001, 0.0, self.loop,
+            lambda watcher, event: self.connect())
+        self.timer.start()
+
+
+def main():
+    loop = pyev.default_loop()
 
     signal_handler = whizzer.signal_handler(loop)
 
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoClientProtocol
 
-    client = whizzer.TcpClient(loop, factory, "127.0.0.1", 2000, logger=logger)
-    client.connect()
+    clients = []
+    for x in range(0, 100):
+        clients.append(Client(loop, factory)) 
 
     signal_handler.start()
     loop.loop()
+
+if __name__ == "__main__":
+    from logbook.more import ColorizedStderrHandler
+    h = ColorizedStderrHandler(level='DEBUG')
+
+    with h.applicationbound():
+        main()
