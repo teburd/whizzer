@@ -20,7 +20,9 @@
 # THE SOFTWARE.
 
 import sys
+import time
 import logbook
+
 
 import pyev
 
@@ -31,21 +33,50 @@ import whizzer
 
 logger = logbook.Logger('echo server')
 
+echo_counts = 0
+last = time.time()
+
+
 class EchoProtocol(whizzer.Protocol):
     def data(self, data):
-        print("got data, returning it")
+        global echo_counts
+        echo_counts += 1
+        logger.debug("got data, returning it")
         self.transport.write(data)
 
-if __name__ == "__main__":
+
+def echos_stats(watcher, events):
+    global last
+    global echo_counts
+    n = time.time()
+
+    logger.critical('ECHOS PER SECOND (ACCEPTS PER SECOND): {}'.format(
+        (echo_counts)/(n-last)))
+    echo_count = 0
+    last = time.time()
+
+
+def main():
     loop = pyev.default_loop()
     
     signal_handler = whizzer.signal_handler(loop)
-   
+    signal_handler.start()
+    
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoProtocol
 
     server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000, logger=logger)
-
-    signal_handler.start()
     server.start()
+
+    stats_timer = pyev.Timer(1.0, 1.0, loop, echos_stats)
+    stats_timer.start()
+
     loop.loop()
+
+if __name__ == "__main__":
+    null_handler = logbook.NullHandler()
+    stderr_handler = logbook.StderrHandler(level='ERROR')
+
+    with null_handler.applicationbound():
+        with stderr_handler.applicationbound():
+            main()
