@@ -48,7 +48,7 @@ class TestProtocol(unittest.TestCase):
         p = factory.build(loop)
         self.assertTrue(isinstance(p, Protocol))
         t = MockTransport()
-        p.make_connection(t)
+        p.make_connection(t, 'test')
         p.lose_connection()
         self.assertTrue(t.closes==1)
         

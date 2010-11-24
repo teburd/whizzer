@@ -96,7 +96,7 @@ class LastException(object):
     the only sane thing to do is nothing.
     
     """
-    def __init__(self, logger=logger):
+    def __init__(self):
         """LastException.
 
         logger -- optional logger object, excepted to have an error method.
@@ -104,18 +104,16 @@ class LastException(object):
         """
         self.exception = None
         self.tb_info = None
-        self.logger = logger
 
     def __del__(self):
         if self.exception:
 
-            self.logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
+            logger.error("Unhandled Exception " + str(self.exception) + " of type " + str(type(self.exception)))
             if self.tb_info:
-                self.logger.error("Traceback: \n" + str(self.tb_info))
+                logger.error("Traceback: \n" + str(self.tb_info))
             else:
-                self.logger.error("Traceback: Unavailable")
+                logger.error("Traceback: Unavailable")
 
-        self.logger = None
         self.exception = None
         self.tb_info = None
 
@@ -129,18 +127,15 @@ class Deferred(object):
 
     warnings = False
 
-    def __init__(self, loop, logger=logger, cancelled_cb=None):
+    def __init__(self, loop, cancelled_cb=None):
         """Deferred.
 
         loop -- a pyev loop instance
         cancelled_cb -- an optional callable given this deferred as its
                         argument when cancel() is called.
-        logger -- optional logger object, excepted to have debug() and error()
-                  methods that take strings
 
         """
         self.loop = loop
-        self.logger = logger
         self.called = False
         self._done = False
         self._cancelled = False
@@ -150,7 +145,7 @@ class Deferred(object):
         self._exception = False
         self._tb_info = None
         self._callbacks = []
-        self._last_exception = LastException(self.logger)
+        self._last_exception = LastException()
 
     def add_callbacks(self, callback, errback=None, callback_args=None,
                       callback_kwargs=None, errback_args=None,
@@ -316,7 +311,7 @@ class Deferred(object):
 
         if self._exception:
             if Deferred.warnings:
-                self.logger.warn('Unhandled Exception: ' + str(self._result))
+                logger.warn('Unhandled Exception: ' + str(self._result))
             self._last_exception.exception = self._result
             self._last_exception.tb_info = self._tb_info
         else:
@@ -327,8 +322,8 @@ class Deferred(object):
 
 
 class DeferredList(Deferred):
-    def __init__(self, loop, cancelled_cb=None, logger=logger):
-        Deferred.__init__(loop, cancelled_cb, logger)
+    def __init__(self, loop, cancelled_cb=None):
+        Deferred.__init__(loop, cancelled_cb)
         self._deferreds = set()
 
     def add(self, deferred):

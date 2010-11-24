@@ -24,13 +24,13 @@ class Protocol(object):
     def __init__(self, loop):
         self.loop = loop
 
-    def make_connection(self, transport):
+    def make_connection(self, transport, address):
         """Called externally when the transport is ready."""
         self.connected = True
         self.transport = transport
-        self.connection_made()
+        self.connection_made(address)
 
-    def connection_made(self):
+    def connection_made(self, address):
         """Called when the connection is ready to use."""
 
     def connection_lost(self, reason):

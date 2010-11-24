@@ -22,7 +22,8 @@
 import sys
 import time
 import signal
-import logging
+import logbook
+from logbook.more import ColorizedStderrHandler
 
 import pyev
 import cProfile
@@ -32,25 +33,28 @@ sys.path.insert(0, '..')
 
 import whizzer
 
+logger = logbook.Logger('echo server')
+
 class EchoProtocol(whizzer.Protocol):
     def data(self, data):
-        print("got data, returning it")
+        logger.info("got data, returning it")
         self.transport.write(data)
 
-if __name__ == "__main__":
+def main():
     loop = pyev.default_loop()
     
-    logger = logging.getLogger('echo_server')
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
-
     signal_handler = whizzer.signal_handler(loop)
    
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoProtocol
 
-    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000)
+    server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000, 256)
 
     signal_handler.start()
     server.start()
     loop.loop()
+
+if __name__ == "__main__":
+    stderr_handler = ColorizedStderrHandler(level='DEBUG')
+    with stderr_handler.applicationbound():
+        main()

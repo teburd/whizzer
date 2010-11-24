@@ -39,30 +39,9 @@ def one_always(result):
 def add(a, b):
     return a+b
 
-class FakeLogger(object):
-    def __init__(self):
-        self.info_msg = ""
-        self.debug_msg = ""
-        self.warn_msg = ""
-        self.error_msg = ""
-
-    def info(self, msg):
-        self.info_msg = msg
-
-    def debug(self, msg):
-        self.debug_msg = msg
-
-    def warn(self, msg):
-        self.warn_msg = msg
- 
-    def error(self, msg):
-        print("setting error message " + msg)
-        self.error_msg = msg
-
 class TestDeferred(unittest.TestCase):
     def setUp(self):
-        self.logger = FakeLogger()
-        self.deferred = Deferred(loop, logger=self.logger)
+        self.deferred = Deferred(loop)
         self.result = None
 
     def tearDown(self):
@@ -102,9 +81,6 @@ class TestDeferred(unittest.TestCase):
         self.deferred.add_callback(throw_always)
         self.deferred.callback(None)
         self.deferred = None # delete it
-
-        print("error msg " + self.logger.error_msg)
-        self.assertTrue(self.logger.error_msg != "")
 
     def test_errback(self):
         self.deferred.add_errback(self.set_result)

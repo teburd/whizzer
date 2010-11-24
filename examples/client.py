@@ -21,40 +21,82 @@
 
 import sys
 import signal
-import logging
+import logbook
+from logbook import NullHandler
+from logbook.more import ColorizedStderrHandler
 import pyev
 
 sys.path.insert(0, '..')
 
 import whizzer
 
+logger = logbook.Logger('echo client')
+
+
 class EchoClientProtocol(whizzer.Protocol):
-    def connection_made(self):
+    def connection_made(self, address):
         """When the connection is made, send something."""
-        print("connection made")
+        logger.info("connection made to {}".format(address))
+        self.connected = True
         self.transport.write(b'Echo Me')
         
     def data(self, data):
-        print("echo'd " + data.decode('ASCII'))
+        logger.info("echo'd " + data.decode('ASCII'))
         self.lose_connection()
+        self.connected = False
 
 def interrupt(watcher, events):
     watcher.loop.unloop()
 
-if __name__ == "__main__":
-    loop = pyev.default_loop()
+class EchoClient(object):
+    def __init__(self, id, loop, factory):
+        self.id = id
+        self.loop = loop
+        self.factory = factory
+        self.logger = logbook.Logger('echo client {}'.format(id))
+        self.connect_client()
 
-    logger = logging.getLogger('echo_client')
-    logger.addHandler(logging.StreamHandler())
-    logger.setLevel(logging.DEBUG)
+
+    def connect_client(self):
+        client = whizzer.TcpClient(self.loop, self.factory, "127.0.0.1", 2000, logger=self.logger)
+        self.logger.info('client calling connect')
+        d = client.connect()
+        self.logger.info('client called connect')
+        d.add_callback(self.connect_success)
+        d.add_errback(self.connect_failed)
+        self.timer = pyev.Timer(1.0, 0.0, self.loop, self.timeout, None)
+        self.timer.start()
+
+    def connect_success(self, result):
+        self.logger.info('connect success, protocol is {}'.format(result.connected))
+        self.connect_client()
+        self.timer.stop()
+
+    def connect_failed(self, error):
+        self.logger.error('client {} connecting failed, reason {}'.format(id, error))
+
+    def timeout(self, watcher, events):
+        self.logger.error('timeout')
+
+def main():
+    loop = pyev.default_loop()
 
     signal_handler = whizzer.signal_handler(loop)
 
     factory = whizzer.ProtocolFactory()
     factory.protocol = EchoClientProtocol
 
-    client = whizzer.TcpClient(loop, factory, "127.0.0.1", 2000, logger=logger)
-    client.connect()
+    clients = []
+    for x in range(0, 2):
+        clients.append(EchoClient(x, loop, factory))
 
     signal_handler.start()
     loop.loop()
+
+if __name__ == "__main__":
+    stderr_handler = ColorizedStderrHandler(level='INFO')
+    null_handler = NullHandler()
+    with null_handler.applicationbound():
+        with stderr_handler.applicationbound():
+            main()
+

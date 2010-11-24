@@ -77,7 +77,7 @@ class MockProtocol(whizzer.Protocol):
         self._data.append(d)
         print("reads " + str(self.reads))
 
-    def connection_made(self):
+    def connection_made(self, address):
         self.connections += 1
         print("connections " + str(self.connections))
 

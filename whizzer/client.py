@@ -27,32 +27,40 @@ import pyev
 from .transport import SocketTransport, ConnectionClosed
 from .defer import Deferred
 
-logger = logbook.Logger(__name__)
+logger = logbook.Logger('client')
+
+
+class TimeoutError(Exception):
+    pass
 
 
 class Connection(object):
     """Represents a connection to a server from a client."""
 
-    def __init__(self, loop, sock, protocol, client, logger):
+    def __init__(self, loop, sock, addr, protocol, client):
         """Create a client connection."""
         self.loop = loop
         self.sock = sock
+        self.addr = addr
         self.protocol = protocol
         self.client = client
-        self.logger = logger
+        logger.info('making transport')
         self.transport = SocketTransport(self.loop, self.sock,
                                          self.protocol.data, self.closed)
-        self.protocol.make_connection(self.transport)
+        logger.info('protocol.make_connection')
+        self.protocol.make_connection(self.transport, self.addr)
+        logger.info('transport.start()')
         self.transport.start()
+        logger.info('transport started')
 
     def closed(self, reason):
         """Callback performed when the transport is closed."""
         self.client.remove_connection(self)
         self.protocol.connection_lost(reason)
         if not isinstance(reason, ConnectionClosed):
-            self.logger.warn("connection closed, reason %s" % str(reason))
+            logger.warn("connection closed, reason {}".format(reason))
         else:
-            self.logger.info("connection closed")
+            logger.info("connection closed")
 
     def close(self):
         """Close the connection."""
@@ -61,10 +69,9 @@ class Connection(object):
 
 class SocketClient(object):
     """A simple socket client."""
-    def __init__(self, loop, factory, logger=logger):
+    def __init__(self, loop, factory):
         self.loop = loop
         self.factory = factory
-        self.logger = logger
         self.connection = None
         self.connect_deferred = None
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop,
@@ -75,19 +82,24 @@ class SocketClient(object):
         if self.connection:
             self.connection.close()
 
-    def _connect(self, sock, connect_arg):
+    def _connect(self, sock, addr, timeout):
         """Start watching the socket for it to be writtable."""
         
-        self.logger.debug("connecting to " + str(connect_arg))
-        self.connect_arg = connect_arg
-        d = Deferred(self.loop, logger=self.logger)
+        logger.debug("connecting to {}".format(addr))
+        self.sock = sock
+        self.addr = addr
+        d = Deferred(self.loop)
         self.connect_deferred = d
 
         try:
-            sock.connect(connect_arg)
-            self.sock = sock
+            logger.info('calling connect')
             self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
             self.connect_watcher.start()
+            self.sock.connect(addr)
+            logger.info('connect called')
+            self.timeout_watcher = pyev.Timer(timeout, 0.0, self.loop, self._connect_timeout)
+            self.timeout_watcher.start()
+            logger.info('waiting for writtable socket')
         except Exception as e:
             d.errback(e)
 
@@ -95,21 +107,34 @@ class SocketClient(object):
 
     def _connected(self, watcher, events):
         """When the socket is writtable, the socket is ready to be used."""
+        logger.debug('socket connected, building protocol')
         self.connect_watcher.stop()
+        self.timeout_watcher.stop()
         self.connect_watcher = None
-        protocol = self.factory.build(self.loop)
-        self.connection = Connection(self.loop, self.sock, protocol, self,
-                                     self.logger)
+        self.timeout_watcher = None
+        self.protocol = self.factory.build(self.loop)
+        self.connection = Connection(self.loop, self.sock, self.addr,
+            self.protocol, self) 
         
-        self.logger.info("connected to " + str(self.connect_arg))
-        self.connect_deferred.callback(protocol)
+        logger.info("connected to {}".format(self.addr))
+        self.timeout_watcher = pyev.Timer(0.1, 0.0, self.loop, lambda watcher, events: self.connect_deferred.callback(self.protocol))
+        self.timeout_watcher.start()
+
+    def _connect_timeout(self, watcher, events):
+        """Connect timed out."""
+        self.connect_watcher.stop()
+        self.timeout_watcher.stop()
+        self.connect_watcher = None
+        self.timeout_watcher = None
+        self.connect_deferred.errback(TimeoutError())
+
 
     def _disconnect(self):
         """Disconnect from a socket."""
         self.connection.close()
         self.connection = None
 
-    def connect(self):
+    def connect(self, timeout=5):
         """Should be overridden to create a socket and connect it.
 
         Once the socket is connected it should be passed to _connect.
@@ -122,13 +147,13 @@ class SocketClient(object):
 
 class UnixClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, path, logger=logger):
-        SocketClient.__init__(self, loop, factory, logger)
+    def __init__(self, loop, factory, path):
+        SocketClient.__init__(self, loop, factory)
         self.path = path
 
-    def connect(self):
+    def connect(self, timeout=5.0):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        return self._connect(sock, self.path)
+        return self._connect(sock, self.path, timeout)
 
     def disconnect(self):
         return self._disconnect()
@@ -136,14 +161,14 @@ class UnixClient(SocketClient):
 
 class TcpClient(SocketClient):
     """A unix client is a socket client that connects to a domain socket."""
-    def __init__(self, loop, factory, host, port, logger=logger):
-        SocketClient.__init__(self, loop, factory, logger)
+    def __init__(self, loop, factory, host, port):
+        SocketClient.__init__(self, loop, factory)
         self.host = host
         self.port = port
 
-    def connect(self):
+    def connect(self, timeout=5.0):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        return self._connect(sock, (self.host, self.port))
+        return self._connect(sock, (self.host, self.port), timeout)
 
     def disconnect(self):
         return self._disconnect()
