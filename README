@@ -1,13 +1,36 @@
-Whizzer is a simple library built around the pyev module. Its named after 
-one of my favorite rollercoasters of all time.
+Whizzer
+=======
 
-Purpose:
-Whizzer is meant to make writting fast non-blocking socket servers using pyev 
-relatively simple.
+Whizzer is a python library to make writting fast non-blocking socket servers
+using relatively simple.
 
-It might look similiar in nature to Twisted. Thats because I believe Twisted 
-does things right! It is not my goal to reinvent all of Twisted. I simply wanted
-a socket handling library that was based on pyev. Implementing a pyev reactor 
-seemed like a larger task then mimicking Twisted's Deferred, Protocol,
-and ProtocolFactory ideas. I still don't think I was wrong.
+Whizzer supports writting event/callback driven programs typically the form
+of state machines. This is probably the sanest way to write an event driven
+program as its very clear what the state of each task is in at all times.
 
+Whizzer supports coroutines as well without any form of stack storing by
+recursively  calling in to the main loop. Coroutines are limited only by the
+size of the stack and the stack depth limit set in python both of which are
+relatively simple to adjust usually. It does not attempt to store task state
+between task switching in any novel ways that may break C extensions.
+
+Whizzer might look similiar in nature to Twisted. Thats because I believe Twisted 
+does things right in many ways. It is not my goal to reinvent all of Twisted. 
+I simply wanted a modern and fast socket event handling library that was based
+on pyev. Part of that was my experience with libev before even using Twisted
+and part of that simply has to do with style.
+
+Whizzer strives to be very fast and very well tested. Whizzer strives
+to have several things included to make fast web application development
+of complex applications simpler.
+
+Whizzer attempts to have the following features packaged with it.
+
+* Python 2/3 compatible
+    * Namely Python 2.7 and python 3.2 or better
+* WSGI/Web3 Server
+    * WebSocket extension (environ['wsgi.websocket'])
+    * Fast, 3000+ req/s of "hello world" with many concurrent connections.
+* Fast RPC protocol implementations (msgpack-rpc, json-rpc, pickle-rpc)
+    * 100k+ notifies/s (one way calls, no responses)
+    * 20k+ calls/s (request/response rpc calls)
