@@ -19,4 +19,40 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import logbook
+import pyev
+
+from io import BytesIO
+
+from whizzer.protocol import Protocol, ProtocolFactory
+
+logger = logbook.Logger(__name__)
+
+class HTTPProtocol(Protocol):
+    def __init__(self):
+        self.input_buffer = StringIO()
+        self._process = self._request
+
+    def data(self, data):
+        self.input_buffer.write(data)
+        lines = self.input_buffer.getvalue().split('\r\n')
+        if len(lines) > 0:
+            for line in lines:
+                logger.debug('got line: {}'.format(line))
+                self._process(line)
+            self.input_buffer = BytesIO(self.lines[len(self.lines) - 1])
+
+
+    def _process(self, line):
+        """State machine transition method.
+
+        HTTPProtocol acts as a state machine where
+        this function is aliased to handle the transition to the next possible
+        set of states.
+
+        """
+
+    def _request_line(self, line):
+        """Handle the request line."""
+
 
