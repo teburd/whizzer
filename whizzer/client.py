@@ -24,10 +24,10 @@ import signal
 import logbook
 import pyev
 
-from .transport import SocketTransport, ConnectionClosed
-from .defer import Deferred
+from whizzer.transport import SocketTransport, ConnectionClosed
+from whizzer.defer import Deferred
 
-logger = logbook.Logger('client')
+logger = logbook.Logger(__name__)
 
 
 class TimeoutError(Exception):

@@ -25,7 +25,7 @@ import socket
 import logbook
 import pyev
 
-from .transport import SocketTransport, ConnectionClosed
+from whizzer.transport import SocketTransport, ConnectionClosed
 
 logger = logbook.Logger(__name__)
 

@@ -1,14 +1,34 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 
 import signal
-import logging
 
 import pyev
 
-from .defer import Deferred, AlreadyCalledError, CancelledError, TimeoutError
-from .protocol import Protocol, ProtocolFactory
-from .server import SocketServer, TcpServer, UnixServer
-from .client import SocketClient, TcpClient, UnixClient
-from .transport import SocketTransport, ConnectionClosed
+from whizzer.defer import Deferred, AlreadyCalledError, CancelledError, TimeoutError
+from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.server import SocketServer, TcpServer, UnixServer
+from whizzer.client import SocketClient, TcpClient, UnixClient
+from whizzer.transport import SocketTransport, ConnectionClosed
 
 def _interrupt(watcher, events):
     watcher.loop.unloop()

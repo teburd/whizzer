@@ -21,7 +21,7 @@
 
 import logbook 
 
-from ..defer import Deferred
+from whizzer.defer import Deferred
 
 logger = logbook.Logger(__name__)
 

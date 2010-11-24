@@ -22,11 +22,11 @@
 
 import msgpack
 
-from ..protocol import Protocol, ProtocolFactory
-from ..defer import Deferred
+from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.defer import Deferred
 
-from .proxy import Proxy
-from .dispatch import Dispatch
+from whizzer.rpc.proxy import Proxy
+from whizzer.rpc.dispatch import Dispatch
 
 
 class MsgPackProxy(Proxy):
