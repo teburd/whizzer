@@ -26,8 +26,6 @@ import logbook
 from logbook.more import ColorizedStderrHandler
 
 import pyev
-import cProfile
-import pstats
 
 sys.path.insert(0, '..')
 
@@ -35,23 +33,51 @@ import whizzer
 
 logger = logbook.Logger('echo server')
 
+
+class EchoProtocolFactory(whizzer.ProtocolFactory):
+    def __init__(self):
+        self.echoes = 0
+
+    def build(self, loop):
+        return EchoProtocol(loop, self)
+
+
 class EchoProtocol(whizzer.Protocol):
+    def __init__(self, loop, factory):
+        self.loop = loop
+        self.factory = factory
+
     def data(self, data):
-        logger.info("got data, returning it")
         self.transport.write(data)
+        self.factory.echoes += 1
+
+class EchoStatistics(object):
+    def __init__(self, loop, factory):
+        self.loop = loop
+        self.factory = factory
+        self.timer = pyev.Timer(2.0, 2.0, loop, self._print_stats)
+    
+    def start(self):
+        self.timer.start()
+
+    def _print_stats(self, watcher, events):
+        logger.error('echoes per seconds {}'.format(self.factory.echoes/2.0))
+        self.factory.echoes = 0
 
 def main():
     loop = pyev.default_loop()
     
     signal_handler = whizzer.signal_handler(loop)
-   
-    factory = whizzer.ProtocolFactory()
-    factory.protocol = EchoProtocol
-
+    signal_handler.start()
+    
+    factory = EchoProtocolFactory()
     server = whizzer.TcpServer(loop, factory, "127.0.0.1", 2000, 256)
+    stats = EchoStatistics(loop, factory)
 
     signal_handler.start()
     server.start()
+    stats.start()
+
     loop.loop()
 
 if __name__ == "__main__":

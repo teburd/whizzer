@@ -30,53 +30,57 @@ sys.path.insert(0, '..')
 
 import whizzer
 
-logger = logbook.Logger('echo client')
+logger = logbook.Logger('echo_client')
 
 
 class EchoClientProtocol(whizzer.Protocol):
     def connection_made(self, address):
         """When the connection is made, send something."""
         logger.info("connection made to {}".format(address))
+        self.count = 0
         self.connected = True
         self.transport.write(b'Echo Me')
         
     def data(self, data):
         logger.info("echo'd " + data.decode('ASCII'))
-        self.lose_connection()
-        self.connected = False
+        if self.count < 10000:
+            self.count += 1
+            self.transport.write(b'Echo Me')
+        else:
+            self.lose_connection()
+            self.connected = False
 
 def interrupt(watcher, events):
     watcher.loop.unloop()
+
 
 class EchoClient(object):
     def __init__(self, id, loop, factory):
         self.id = id
         self.loop = loop
         self.factory = factory
-        self.logger = logbook.Logger('echo client {}'.format(id))
         self.connect_client()
 
-
     def connect_client(self):
-        client = whizzer.TcpClient(self.loop, self.factory, "127.0.0.1", 2000, logger=self.logger)
-        self.logger.info('client calling connect')
+        client = whizzer.TcpClient(self.loop, self.factory, "127.0.0.1", 2000)
+        logger.info('client calling connect')
         d = client.connect()
-        self.logger.info('client called connect')
+        logger.info('client called connect')
         d.add_callback(self.connect_success)
         d.add_errback(self.connect_failed)
         self.timer = pyev.Timer(1.0, 0.0, self.loop, self.timeout, None)
         self.timer.start()
 
     def connect_success(self, result):
-        self.logger.info('connect success, protocol is {}'.format(result.connected))
+        logger.info('connect success, protocol is {}'.format(result.connected))
         self.connect_client()
         self.timer.stop()
 
     def connect_failed(self, error):
-        self.logger.error('client {} connecting failed, reason {}'.format(id, error))
+        logger.error('client {} connecting failed, reason {}'.format(id, error))
 
     def timeout(self, watcher, events):
-        self.logger.error('timeout')
+        logger.error('timeout')
 
 def main():
     loop = pyev.default_loop()
@@ -87,6 +91,7 @@ def main():
     factory.protocol = EchoClientProtocol
 
     clients = []
+    # number of parallel clients
     for x in range(0, 2):
         clients.append(EchoClient(x, loop, factory))
 
@@ -99,4 +104,3 @@ if __name__ == "__main__":
     with null_handler.applicationbound():
         with stderr_handler.applicationbound():
             main()
-
