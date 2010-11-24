@@ -28,9 +28,29 @@ from whizzer.protocol import Protocol, ProtocolFactory
 
 logger = logbook.Logger(__name__)
 
+http_1_0_request = [
+
+class HTTPRequest(object):
+    """HTTP Request object.
+
+    HTTP requests have a verb, location, version
+    and a set of header values.
+
+    The entire request is stored in to a dictionary.
+
+    """
+    
+
 class HTTPProtocol(Protocol):
-    def __init__(self):
+    """HTTP 1.1 Protocol implementation. Some ideas taken from CherryPy's
+    HTTP parser. Parses each HTTP request and passes it to the given
+    request handler, that may be as simple as a logger.
+
+    """
+
+    def __init__(self, request_handler):
         self.input_buffer = StringIO()
+        self.request_handler = request_handler
         self._process = self._request
 
     def data(self, data):
@@ -53,6 +73,25 @@ class HTTPProtocol(Protocol):
         """
 
     def _request_line(self, line):
-        """Handle the request line."""
+        """Handle the request line.
+
+        A request must be of the form
+
+        {VERB} {LOCATION} HTTP/{VERSION}\r\n
+
+        Where VERB, LOCATION and VERSION all have validity checks to ensure
+        valid formatting.
+
+        """
+
+    def _header_line(self, line):
+        """Handle a header line.
+
+        HTTP headers describe properties of the request.
+        Each header line looks something like
+
+        {Header}: {Value}\r\n
+
+        """
 
 
