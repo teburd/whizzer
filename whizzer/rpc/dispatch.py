@@ -27,8 +27,8 @@ class Dispatch(object):
         """Instantiate a basic dispatcher."""
         self.functions = dict()
 
-    def call(self, function, args):
-        """Call a method given some args.
+    def call(self, function, args=(), kwargs={}):
+        """Call a method given some args and kwargs.
 
         function -- string containing the method name to call
         args -- arguments, either a list or tuple
@@ -38,7 +38,7 @@ class Dispatch(object):
         May raise an exception if the method isn't in the dict.
 
         """
-        return self.functions[function](*args)
+        return self.functions[function](*args, **kwargs)
 
     def add(self, fn, name=None):
         """Add a function that the dispatcher will know about.
