@@ -36,9 +36,7 @@ class Process(object):
     """
     def __init__(self, loop, run, *args, **kwargs):
         """Setup a process object with the above arguments."""
-        self.logger = logger
         self.loop = loop
-        self.process = None
         self.run = run
         self.args = args
         self.kwargs = kwargs
@@ -46,21 +44,23 @@ class Process(object):
 
     def start(self):
         """Start the process, essentially forks and calls target function.""" 
-        self.logger.info("starting process")
+        logger.info("starting process")
         process = os.fork()
-
         time.sleep(0.01)
         if process != 0:
+            logger.debug('starting child watcher')
             self.child_pid = process
             self.watcher = pyev.Child(self.child_pid, False, self.loop, self._child)
             self.watcher.start()
         else:
+            logger.debug('running main function')
             self.run(*self.args, **self.kwargs) 
+            logger.debug('quitting')
             sys.exit(0)
 
     def stop(self):
         """Stop the process."""
-        self.logger.info("stopping process")
+        logger.info("stopping process")
         self.watcher.stop()
         os.kill(self.child_pid, signal.SIGTERM)
 

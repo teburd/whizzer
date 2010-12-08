@@ -44,7 +44,6 @@ class Connection(object):
     def make_connection(self):
         self.transport.start()
         self.protocol.make_connection(self.transport, self.address)
-        logger.info("connection made with {}".format(self.address))
 
     def closed(self, reason):
         """Callback performed when the transport is closed."""

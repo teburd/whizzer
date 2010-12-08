@@ -44,14 +44,14 @@ class Connection(object):
         self.addr = addr
         self.protocol = protocol
         self.client = client
-        logger.info('making transport')
+        logger.debug('making transport')
         self.transport = SocketTransport(self.loop, self.sock,
                                          self.protocol.data, self.closed)
-        logger.info('protocol.make_connection')
+        logger.debug('protocol.make_connection')
         self.protocol.make_connection(self.transport, self.addr)
-        logger.info('transport.start()')
+        logger.debug('transport.start()')
         self.transport.start()
-        logger.info('transport started')
+        logger.debug('transport started')
 
     def closed(self, reason):
         """Callback performed when the transport is closed."""
@@ -92,14 +92,14 @@ class SocketClient(object):
         self.connect_deferred = d
 
         try:
-            logger.info('calling connect')
+            logger.debug('calling connect')
             self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
             self.connect_watcher.start()
             self.sock.connect(addr)
-            logger.info('connect called')
+            logger.debug('connect called')
             self.timeout_watcher = pyev.Timer(timeout, 0.0, self.loop, self._connect_timeout)
             self.timeout_watcher.start()
-            logger.info('waiting for writtable socket')
+            logger.debug('waiting for writtable socket')
         except Exception as e:
             d.errback(e)
 

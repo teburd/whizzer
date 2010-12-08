@@ -27,11 +27,15 @@ except:
 
 import struct
 
+import logbook
+
 from whizzer.protocol import Protocol, ProtocolFactory
 from whizzer.defer import Deferred
 
 from whizzer.rpc.proxy import Proxy
 from whizzer.rpc.dispatch import Dispatch
+
+logger = logbook.Logger(__name__)
 
 
 def dumps(obj):
@@ -65,7 +69,7 @@ class PickleProxy(Proxy):
         """
         self.timeout = timeout
 
-    def call(self, method, *args):
+    def call(self, method, *args, **kwargs):
         """Perform a synchronous remote call where the returned value is given immediately.
 
         This may block for sometime in certain situations. If it takes more than the Proxies
@@ -76,9 +80,9 @@ class PickleProxy(Proxy):
         Internally this calls begin_call(method, *args).result(timeout=self.timeout)
 
         """
-        return self.begin_call(method, *args).result(self.timeout)
+        return self.begin_call(method, *args, **kwargs).result(self.timeout)
 
-    def notify(self, method, *args):
+    def notify(self, method, *args, **kwargs):
         """Perform a synchronous remote call where value no return value is desired.
 
         While faster than call it still blocks until the remote callback has been sent.
@@ -87,9 +91,9 @@ class PickleProxy(Proxy):
         set timeout then a TimeoutError is raised.
 
         """
-        self.protocol.send_notification(method, args)
+        self.protocol.send_notification(method, args, kwargs)
 
-    def begin_call(self, method, *args):
+    def begin_call(self, method, *args, **kwargs):
         """Perform an asynchronous remote call where the return value is not known yet.
 
         This returns immediately with a Deferred object. The Deferred object may then be
@@ -99,13 +103,14 @@ class PickleProxy(Proxy):
         d = Deferred(self.loop)
         d.request = self.request_num
         self.requests[self.request_num] = d
-        self.protocol.send_request(d.request, method, args)
+        self.protocol.send_request(d.request, method, args, kwargs)
         self.request_num += 1
         return d
 
-    def result(self, msgid, result):
-        """Handle a result message."""
-        self.requests[msgid].callback(result)
+    def response(self, msgid, response):
+        """Handle a response message."""
+        logger.debug('giving response to callback')
+        self.requests[msgid].callback(response)
         del self.requests[msgid]
 
     def error(self, msgid, error):
@@ -121,11 +126,11 @@ class PickleProtocol(Protocol):
         self._proxy = None
         self._proxy_deferreds = []
         self.handlers = {0:self.handle_request, 1:self.handle_notification,
-            2:self.handle_result, 3:self.handle_error}
+            2:self.handle_response, 3:self.handle_error}
         self._buffer = bytes()
         self._data_handler = self.data_length
 
-    def connection_made(self):
+    def connection_made(self, address):
         """When a connection is made the proxy is available."""
         self._proxy = PickleProxy(self.loop, self)
         for d in self._proxy_deferreds:
@@ -136,10 +141,12 @@ class PickleProtocol(Protocol):
         message.
 
         """
+        logger.debug('got data')
         self._buffer = self._buffer + data
 
-        while self.data_handler():
-            pass
+        while self._data_handler():
+            logger.debug('waiting')
+        logger.debug('finished with data')
 
     def connection_lost(self, reason=None):
         """Tell the factory we lost our connection."""
@@ -147,72 +154,84 @@ class PickleProtocol(Protocol):
         self.factory = None
 
     def data_length(self):
-        if len(self._buffer) > 4:
-            self._msglen = struct.unpack(self._buffer[:4])[0]
+        if len(self._buffer) >= 4:
+            self._msglen = struct.unpack('!I', self._buffer[:4])[0]
             self._buffer = self._buffer[4:]
             self._data_handler = self.data_message
             return True
         return False
 
     def data_message(self):
-        if len(self._buffer) > self._msglen:
+        if len(self._buffer) >= self._msglen:
             msg = loads(self._buffer[:self._msglen])
+            logger.debug('got a msg of type {}'.format(msg[0]))
             self.handlers[msg[0]](*msg)
+            logger.debug('clearing buffer')
             self._buffer = self._buffer[self._msglen:]
             self._data_handler = self.data_length
             return True
+        return False
 
     def handle_request(self, msgtype, msgid, method, args, kwargs):
         """Handle a request."""
-        result = None
+        response = None
         error = None
         exception = None
 
+        logger.debug('handling request')
         try:
-            result = self.dispatch.call(method, args, kwargs)
+            response = self.dispatch.call(method, args, kwargs)
         except Exception as e:
             error = (e.__class__.__name__, str(e))
             exception = e
 
-        if isinstance(result, Deferred):
-            result.add_callback(self.send_result, msgid)
-            result.add_errback(self.send_error, msgid)
+        if isinstance(response, Deferred):
+            logger.debug('using deferred')
+            response.add_callback(self.send_response, msgid)
+            response.add_errback(self.send_error, msgid)
         else:
             if exception is None:
-                self.send_result(msgid, result)
+                logger.debug('sending response')
+                self.send_response(msgid, response)
             else:
+                logger.debug('sending error')
                 self.send_error(msgid, exception)
 
     def handle_notification(self, msgtype, method, args, kwargs):
         """Handle a notification."""
         self.dispatch.call(method, args, kwargs)
 
-    def handle_result(self, msgtype, msgid, result):
-        """Handle a result."""
-        self.proxy.result(msgid, result)
+    def handle_response(self, msgtype, msgid, response):
+        """Handle a response."""
+        logger.debug('giving response to proxy, which is of type {}'.format(type(self._proxy)))
+        self._proxy.response(msgid, response)
 
     def handle_error(self, msgtype, msgid, error):
         """Handle an error."""
-        self.proxy.error(msgid, error)
+        self._proxy.error(msgid, error)
 
     def send(self, msg):
+        logger.debug('sending msg')
         length = struct.pack('!I', len(msg))
         self.transport.write(length)
         self.transport.write(msg)
 
     def send_request(self, msgid, method, args, kwargs):
         """Send a request."""
+        logger.debug('sending request')
         msg = dumps([0, msgid, method, args, kwargs])
+        logger.debug('sending')
         self.send(msg)
+        logger.debug('sent')
 
     def send_notification(self, method, args, kwargs):
         """Send a notification."""
         msg = dumps([1, method, args, kwargs])
         self.send(msg)
 
-    def send_result(self, msgid, result):
-        """Send a result."""
-        msg = dumps([2, msgid, result])
+    def send_response(self, msgid, response):
+        """Send a response."""
+        msg = dumps([2, msgid, response])
         self.send(msg)
 
     def send_error(self, msgid, error):
