@@ -20,7 +20,9 @@
 # THE SOFTWARE.
 
 import signal
-import subprocess
+import time
+import os
+import sys
 import logbook
 import pyev
 
@@ -28,34 +30,39 @@ logger = logbook.Logger(__name__)
 
 
 class Process(object):
-    """Acts as a wrapper around subprocess.Popen that provides logging and
-    process watching using pyev instead of Popen.poll()
+    """Acts as a wrapper around multiprocessing.Process/os.fork that provides logging
+    and process watching using pyev.
 
     """
-    def __init__(self, loop, *args, **kwargs):
+    def __init__(self, loop, run, *args, **kwargs):
         """Setup a process object with the above arguments."""
         self.logger = logger
         self.loop = loop
         self.process = None
+        self.run = run
         self.args = args
         self.kwargs = kwargs
         self.watcher = None
 
     def start(self):
-        """Start the process."""
+        """Start the process, essentially forks and calls target function.""" 
         self.logger.info("starting process")
-        self.process = subprocess.Popen(*self.args, **self.kwargs)
-        self.watcher = pyev.Child(self.process.pid, False, self.loop, self._child)
-        self.watcher.start()
-    
+        process = os.fork()
+
+        time.sleep(0.01)
+        if process != 0:
+            self.child_pid = process
+            self.watcher = pyev.Child(self.child_pid, False, self.loop, self._child)
+            self.watcher.start()
+        else:
+            self.run(*self.args, **self.kwargs) 
+            sys.exit(0)
+
     def stop(self):
         """Stop the process."""
         self.logger.info("stopping process")
-        try:
-            self.process.send_signal(signal.SIGTERM)
-        except OSError as e:
-            self.logger.warn("process already stopped")
-            pass
+        self.watcher.stop()
+        os.kill(self.child_pid, signal.SIGTERM)
 
     def _child(self, watcher, events):
         """Handle child watcher callback."""
@@ -69,30 +76,4 @@ class Process(object):
         anything more than log that the process died.
 
         """
-        self.logger.error("%s crashed" % self.args[0][0])
-
-
-class ProcessGroup(object):
-    """A container for a set of Process objects with some convienence
-    methods to start and stop them all.
-    
-    """
-    def __init__(self):
-        """ProcessManager."""
-        self.logger = logger
-        self.processes = []
-
-    def start(self):
-        """Start all processes in the order they were added."""
-        self.logger.info("starting all processes")
-        for process in self.processes:
-            process.start()
-
-    def stop(self):
-        """Stops all processes in the order they were added."""
-        self.logger.info("stopping all processes")
-        for process in self.processes:
-            process.stop() 
-
-
-
+        self.logger.error("%s crashed" % self.child_pid)

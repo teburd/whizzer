@@ -26,8 +26,6 @@ import socket
 import unittest
 import pyev
 
-sys.path.insert(0, "..")
-
 from whizzer import server, client, protocol
 from whizzer.rpc import dispatch, proxy, msgpackrpc
 

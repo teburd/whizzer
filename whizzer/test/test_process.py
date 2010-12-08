@@ -18,41 +18,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import sys
-import time
 import unittest
+
 import pyev
 
-sys.path.insert(0, '..')
-
-from whizzer.protocol import Protocol, ProtocolFactory
+from whizzer.defer import Deferred
+from whizzer.process import Process
 from mocks import *
 from common import loop
 
-class TestProtocol(unittest.TestCase):
-    def test_protocol(self):
-        protocol = Protocol(loop) 
-    
-    def test_factory(self):
-        factory = ProtocolFactory()
+def run():
+    print("ran")
 
-    def test_factory_build(self):
-        factory = ProtocolFactory()
-        factory.protocol = Protocol
-        p = factory.build(loop)
-        self.assertTrue(isinstance(p, Protocol))
 
-    def test_lose_connection(self):
-        factory = ProtocolFactory()
-        factory.protocol = Protocol
-        p = factory.build(loop)
-        self.assertTrue(isinstance(p, Protocol))
-        t = MockTransport()
-        p.make_connection(t, 'test')
-        p.lose_connection()
-        self.assertTrue(t.closes==1)
-        
-
+class TestProcess(unittest.TestCase):
+    def test_create(self):
+        p = Process(loop, run)
 
 if __name__ == '__main__':
     unittest.main()

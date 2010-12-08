@@ -26,19 +26,19 @@ import socket
 import unittest
 import pyev
 
-sys.path.insert(0, "..")
-
 from whizzer.transport import SocketTransport, ConnectionClosed, BufferOverflowError
 from common import loop
+
+fpath = os.path.dirname(__file__)
 
 class TestSocketTransport(unittest.TestCase):
     def setUp(self):
         # setup some blocking sockets to test the transport with
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.bind("test_sock")
+        self.sock.bind(fpath + "/test_sock")
         self.sock.listen(1)
         self.csock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.csock.connect("test_sock")
+        self.csock.connect(fpath + "/test_sock")
         self.ssock, self.saddr = self.sock.accept()
         self.data = [] 
         self.reason = None
@@ -48,7 +48,7 @@ class TestSocketTransport(unittest.TestCase):
         self.csock = None
         self.ssock = None
         self.saddr = None
-        os.remove("test_sock")
+        os.remove(fpath + "/test_sock")
         self.data = []
         self.reason = None
 

@@ -27,12 +27,12 @@ import select
 import unittest
 import pyev
 
-sys.path.insert(0, "..")
-
 from whizzer.protocol import Protocol, ProtocolFactory
 from whizzer.server import UnixServer, TcpServer
 from mocks import *
 from common import loop
+
+fpath = os.path.dirname(__file__)
 
 class TestServerCreation(unittest.TestCase):
     def test_tcp_server(self):
@@ -54,7 +54,7 @@ class TestUnixServer(unittest.TestCase):
     def setUp(self):
         self.factory = MockFactory()
         self.factory.protocol = MockProtocol
-        self.path = "test"
+        self.path = fpath + "/test_socket"
         self.server = UnixServer(loop, self.factory, self.path)
 
     def tearDown(self):

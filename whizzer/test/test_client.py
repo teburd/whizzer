@@ -26,8 +26,6 @@ import socket
 
 import pyev
 
-sys.path.insert(0, '..')
-
 from whizzer.defer import Deferred
 from whizzer.protocol import Protocol, ProtocolFactory
 from whizzer.client import TcpClient, UnixClient
@@ -168,7 +166,6 @@ class TestTcpClient(unittest.TestCase):
         d.result()
         self.client.disconnect()
         self.assertTrue(self.client.connection is None)
-
 
 if __name__ == '__main__':
     unittest.main()

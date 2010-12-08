@@ -20,9 +20,7 @@
 
 import sys
 
-sys.path.insert(0, "..")
-
-import whizzer
+from whizzer.protocol import Protocol, ProtocolFactory
 
 class MockTransport(object):
     def __init__(self):
@@ -60,9 +58,9 @@ class MockLogger(object):
         print("error: " + message)
         self.errors.append(message)
 
-class MockProtocol(whizzer.Protocol):
+class MockProtocol(Protocol):
     def __init__(self, loop):
-        whizzer.Protocol.__init__(self, loop)
+        Protocol.__init__(self, loop)
         self.reads = 0
         self.errors = 0
         self.connections = 0
@@ -86,9 +84,9 @@ class MockProtocol(whizzer.Protocol):
         self.reason = reason
         print("losses " + str(self.losses))
 
-class MockFactory(whizzer.ProtocolFactory):
+class MockFactory(ProtocolFactory):
     def __init__(self):
-        whizzer.ProtocolFactory.__init__(self)
+        ProtocolFactory.__init__(self)
         self.builds = 0
 
     def build(self, loop):

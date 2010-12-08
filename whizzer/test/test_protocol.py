@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2010 Tom Burdick <thomas.burdick@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,3 +17,40 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
+import sys
+import time
+import unittest
+import pyev
+
+from whizzer.protocol import Protocol, ProtocolFactory
+from mocks import *
+from common import loop
+
+class TestProtocol(unittest.TestCase):
+    def test_protocol(self):
+        protocol = Protocol(loop) 
+    
+    def test_factory(self):
+        factory = ProtocolFactory()
+
+    def test_factory_build(self):
+        factory = ProtocolFactory()
+        factory.protocol = Protocol
+        p = factory.build(loop)
+        self.assertTrue(isinstance(p, Protocol))
+
+    def test_lose_connection(self):
+        factory = ProtocolFactory()
+        factory.protocol = Protocol
+        p = factory.build(loop)
+        self.assertTrue(isinstance(p, Protocol))
+        t = MockTransport()
+        p.make_connection(t, 'test')
+        p.lose_connection()
+        self.assertTrue(t.closes==1)
+        
+
+
+if __name__ == '__main__':
+    unittest.main()
