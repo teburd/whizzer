@@ -148,7 +148,7 @@ class TestPickleProtocol(unittest.TestCase):
     
     def test_connection_made(self):
         future_proxy = self.protocol.proxy()
-        self.protocol.connection_made()
+        self.protocol.connection_made(None)
         self.assertTrue(isinstance(future_proxy.result(), proxy.Proxy))
 
     def test_handle_request(self):

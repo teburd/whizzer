@@ -32,8 +32,9 @@ from whizzer.server import UnixServer
 from whizzer.client import UnixClient
 from whizzer.rpc.dispatch import remote, ObjectDispatch
 from whizzer.rpc.picklerpc import PickleProtocol, PickleProtocolFactory
+from whizzer.rpc.msgpackrpc import MsgPackProtocol, MsgPackProtocolFactory
 
-logger = logbook.Logger('echo server')
+logger = logbook.Logger('forked!')
 
 
 class AdderService(object):
@@ -49,16 +50,19 @@ class AdderService(object):
 def server_main(loop, path):
     """Run in the client after the fork."""
     logger.debug('forked function')
-    loop.fork()
     sigintwatcher = pyev.Signal(signal.SIGINT, loop, lambda watcher, events: logger.info('interrupt ignored'))
     sigintwatcher.start()
     sigtermwatcher = pyev.Signal(signal.SIGTERM, loop, lambda watcher, events: watcher.loop.unloop(pyev.EVUNLOOP_ALL))
     sigtermwatcher.start()
     adder = AdderService()
     dispatcher = ObjectDispatch(adder)
-    factory = PickleProtocolFactory(dispatcher)
-    server = UnixServer(loop, factory, path)
-    server.start()
+    pickle_factory = PickleProtocolFactory(dispatcher)
+    pickle_server = UnixServer(loop, pickle_factory, path)
+    pickle_server.start()
+    msgpack_factory = MsgPackProtocolFactory(dispatcher)
+    msgpack_server = UnixServer(loop, msgpack_factory, path + '_mp')
+    msgpack_server.start()
+
     logger.debug('running server loop')
     loop.loop()
 
@@ -69,29 +73,72 @@ def main():
     sigwatcher = pyev.Signal(signal.SIGINT, loop, lambda watcher, events: watcher.loop.unloop(pyev.EVUNLOOP_ALL))
     sigwatcher.start()
     
-    loop.fork()
     p = Process(loop, server_main, loop, 'adder_socket')
     p.start()
 
-    factory = PickleProtocolFactory()
-    client = UnixClient(loop, factory, path)
+    pickle_factory = PickleProtocolFactory()
+    pickle_client = UnixClient(loop, pickle_factory, path)
 
     retries = 10 
     while retries:
         try:
-            client.connect().result()
+            pickle_client.connect().result()
             retries = 0
         except Exception as e:
             time.sleep(0.1)
             retries -= 1
 
-    proxy = factory.proxy(0).result()
-
-    s = 1
+    proxy = pickle_factory.proxy(0).result()
+    
+    start = time.time()
+    s = 0
     for i in range(10000):
         logger.debug('adding')
         s = proxy.call('add', 1, s)
-    print s
+    stop = time.time()
+
+    logger.info('pickle-rpc took {} seconds to perform {} calls, {} calls per second', stop-start, s, s/(stop-start))
+
+    start = time.time()
+    for i in range(10000):
+        logger.debug('adding')
+        proxy.notify('add', 1, s)
+    proxy.call('add', 1, s)
+    stop = time.time()
+
+    logger.info('pickle-rpc took {} seconds to perform {} notifications, {} notifies per second', stop-start, 10000, 10000/(stop-start))
+
+    msgpack_factory = MsgPackProtocolFactory()
+    msgpack_client = UnixClient(loop, msgpack_factory, path + '_mp')
+
+    retries = 10 
+    while retries:
+        try:
+            msgpack_client.connect().result()
+            retries = 0
+        except Exception as e:
+            time.sleep(0.1)
+            retries -= 1
+
+    proxy = msgpack_factory.proxy(0).result()
+    
+    start = time.time()
+    s = 0
+    for i in range(10000):
+        logger.debug('adding')
+        s = proxy.call('add', 1, s)
+    stop = time.time()
+
+    logger.info('msgpack-rpc took {} seconds to perform {} calls, {} calls per second', stop-start, s, s/(stop-start))
+
+    start = time.time()
+    for i in range(10000):
+        logger.debug('adding')
+        proxy.notify('add', 1, s)
+    proxy.call('add', 1, s)
+    stop = time.time()
+
+    logger.info('msgpack-rpc took {} seconds to perform {} notifications, {} notifies per second', stop-start, 10000, 10000/(stop-start))
 
     p.stop()
 

@@ -109,7 +109,7 @@ class MsgPackProtocol(Protocol):
         self.handlers = {0:self.request, 1:self.response, 2:self.notify}
         self.unpacker = msgpack.Unpacker()
 
-    def connection_made(self):
+    def connection_made(self, address):
         """When a connection is made the proxy is available."""
         self._proxy = MsgPackProxy(self.loop, self)
         for d in self._proxy_deferreds:

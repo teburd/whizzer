@@ -49,6 +49,7 @@ class Process(object):
         time.sleep(0.01)
         if process != 0:
             logger.debug('starting child watcher')
+            self.loop.fork()
             self.child_pid = process
             self.watcher = pyev.Child(self.child_pid, False, self.loop, self._child)
             self.watcher.start()
