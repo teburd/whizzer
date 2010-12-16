@@ -64,7 +64,9 @@ def server_main(loop, path):
     msgpack_server.start()
 
     logger.debug('running server loop')
-    loop.loop()
+
+    import cProfile
+    cProfile.runctx('loop.loop()', None, {'loop':loop}, 'server_profile') 
 
 def main():
     path = 'adder_socket'

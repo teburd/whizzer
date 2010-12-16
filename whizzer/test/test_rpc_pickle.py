@@ -135,7 +135,7 @@ class TestPickleProtocol(unittest.TestCase):
     def runTest(self):
         unittest.TestCase.runTest(self)
 
-    def mock_send_result(self, msgid, result):
+    def mock_send_response(self, msgid, result):
         """Mock send response to make testing narrowed down and simpler."""
         self.response = (msgid, result)
         print "response was " + str(self.response)
@@ -152,20 +152,20 @@ class TestPickleProtocol(unittest.TestCase):
         self.assertTrue(isinstance(future_proxy.result(), proxy.Proxy))
 
     def test_handle_request(self):
-        self.protocol.send_result = self.mock_send_result
+        self.protocol.send_response = self.mock_send_response
         self.protocol.send_error = self.mock_send_error
         self.protocol.handle_request(0, 0, "add", (1, 2), {})
         self.assertTrue(self.response == (0, 3))
 
     def test_handle_unknown_request(self):
-        self.protocol.send_result = self.mock_send_result
+        self.protocol.send_response = self.mock_send_response
         self.protocol.send_error = self.mock_send_error
         self.protocol.handle_request(0, 0, "blah_add", (1, 2), {})
         self.assertTrue(self.error[0] == 0)
         self.assertTrue(isinstance(self.error[1], KeyError))
 
     def test_handle_badargs_request(self):
-        self.protocol.send_result = self.mock_send_result
+        self.protocol.send_response = self.mock_send_response
         self.protocol.send_error = self.mock_send_error
         self.protocol.handle_request(0, 0, "add", (1, 2, 3), {})
         self.assertTrue(self.error[0] == 0)

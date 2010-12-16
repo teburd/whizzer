@@ -153,7 +153,7 @@ class SocketServer(object):
             connection = Connection(self.loop, sock, address, protocol, self)
             self.connections.add(connection)
             connection.make_connection()
-            logger.debug("added connection")
+            #logger.debug("added connection")
         except IOError as e:
             self.shutdown(e)
 
@@ -161,7 +161,7 @@ class SocketServer(object):
         """Called by the connections themselves when they have been closed."""
         if not self._closing:
             self.connections.remove(connection)
-            logger.debug("removed connection")
+            #logger.debug("removed connection")
 
 class _PathRemoval(object):
     """Remove a path when the object dies.
