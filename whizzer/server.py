@@ -174,7 +174,7 @@ class _PathRemoval(object):
 
     def __del__(self):
         if os.path.exists(self.path):
-            os.remove(self.path)
+            os.unlink(self.path)
 
 class UnixServer(SocketServer):
     """A unix server is a socket server that listens on a domain socket."""

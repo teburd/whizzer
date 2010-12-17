@@ -19,51 +19,47 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import pyev
+
 import logbook
 
 from whizzer.process import Process
-from whizzer.rpc.dispatch import remote
+from whizzer.server import UnixServer
+
+from whizzer.rpc.dispatch import remote, ObjectDispatch
+from whizzer.rpc.msgpackrpc import MsgPackProtocolFactory
 
 logger = logbook.Logger(__name__)
 
 
-def spawn_link(service, *args, **kwargs):
-    """Spawn a linked process such that when that process dies
-    the current one will also die. This happens by signaling the current
-    process with SIGINT. This returns a Proxy to the spawned service.
-
-    """
-
-def spawn_notify(notify, service, *args, **kwargs):
-    """Spawn a process such that when that process dies the given callback
-    is called with the Process object.
-
-    """
-
-def ServiceProxy(object):
-    """Proxy to a service, easily serialized and reconstructed."""
-
-class Service(object)
+class Service(Process):
     """A generic service class meant to be run in a process on its own and
     handle requests using RPC.
 
     """
 
-    def __init__(self, name):
+    def __init__(self, loop, settings):
         """Create a service with a name."""
+        Process.__init__(loop, self.run, (), {})
+        self.loop = loop
+        self.settings = settings
+        self.logger = logbook.Logger(self.settings['name'])
+
+    def listen(self):
+        """Setup the service to listen for clients."""
+        path = self.settings['name']
+        dispatcher = ObjectDispatch(self)
+        factory = MsgPackProtocolFactory(dispatcher)
+        server = UnixServer(self.loop, factory, path)
+        server.start()
+
+    def run(self):
+        """Run the event loop."""
+        self.logger.info('{} starting'.format(self.settings['name']))
+        self.loop.loop()
 
     @remote
-    def call(self, caller, name, *args, **kwargs):
-        """Handle a remote call."""
-
-    @remote
-    def cast(self, name, *args, **kwargs):
-        """Handle a remote notification."""
-
-    @remote
-    def stop(self, reason):
+    def stop(self, reason=None):
         """Shutdown the service with a reason."""
-
-
-    def terminate(self, reason):
-        """
+        self.logger.info('{} stopping'.format(self.settings['name']))
+        self.loop.unloop(pyev.EVUNLOOP_ALL)

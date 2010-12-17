@@ -54,6 +54,7 @@ class Process(object):
             self.watcher = pyev.Child(self.child_pid, False, self.loop, self._child)
             self.watcher.start()
         else:
+            self.loop.fork()
             logger.debug('running main function')
             self.run(*self.args, **self.kwargs) 
             logger.debug('quitting')

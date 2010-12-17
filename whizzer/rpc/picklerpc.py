@@ -109,7 +109,6 @@ class PickleProxy(Proxy):
 
     def response(self, msgid, response):
         """Handle a response message."""
-        logger.debug('giving response to callback')
         self.requests[msgid].callback(response)
         del self.requests[msgid]
 
@@ -141,12 +140,10 @@ class PickleProtocol(Protocol):
         message.
 
         """
-        logger.debug('got data')
         self._buffer = self._buffer + data
 
         while self._data_handler():
-            logger.debug('waiting')
-        logger.debug('finished with data')
+            pass
 
     def connection_lost(self, reason=None):
         """Tell the factory we lost our connection."""
@@ -164,9 +161,7 @@ class PickleProtocol(Protocol):
     def data_message(self):
         if len(self._buffer) >= self._msglen:
             msg = loads(self._buffer[:self._msglen])
-            logger.debug('got a msg of type {}'.format(msg[0]))
             self.handlers[msg[0]](*msg)
-            logger.debug('clearing buffer')
             self._buffer = self._buffer[self._msglen:]
             self._data_handler = self.data_length
             return True
@@ -178,7 +173,6 @@ class PickleProtocol(Protocol):
         error = None
         exception = None
 
-        logger.debug('handling request')
         try:
             response = self.dispatch.call(method, args, kwargs)
         except Exception as e:
@@ -186,15 +180,12 @@ class PickleProtocol(Protocol):
             exception = e
 
         if isinstance(response, Deferred):
-            logger.debug('using deferred')
             response.add_callback(self.send_response, msgid)
             response.add_errback(self.send_error, msgid)
         else:
             if exception is None:
-                logger.debug('sending response')
                 self.send_response(msgid, response)
             else:
-                logger.debug('sending error')
                 self.send_error(msgid, exception)
 
     def handle_notification(self, msgtype, method, args, kwargs):
@@ -203,7 +194,6 @@ class PickleProtocol(Protocol):
 
     def handle_response(self, msgtype, msgid, response):
         """Handle a response."""
-        logger.debug('giving response to proxy, which is of type {}'.format(type(self._proxy)))
         self._proxy.response(msgid, response)
 
     def handle_error(self, msgtype, msgid, error):
@@ -211,18 +201,14 @@ class PickleProtocol(Protocol):
         self._proxy.error(msgid, error)
 
     def send(self, msg):
-        logger.debug('sending msg')
         length = struct.pack('!I', len(msg))
         self.transport.write(length)
         self.transport.write(msg)
 
     def send_request(self, msgid, method, args, kwargs):
         """Send a request."""
-        logger.debug('sending request')
         msg = dumps([0, msgid, method, args, kwargs])
-        logger.debug('sending')
         self.send(msg)
-        logger.debug('sent')
 
     def send_notification(self, method, args, kwargs):
         """Send a notification."""

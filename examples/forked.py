@@ -19,20 +19,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import sys
 import time
 import signal
+
 import logbook
 from logbook import NullHandler
 from logbook.more import ColorizedStderrHandler
 
 import pyev
+
 from whizzer.process import Process
 from whizzer.server import UnixServer
 from whizzer.client import UnixClient
 from whizzer.rpc.dispatch import remote, ObjectDispatch
-from whizzer.rpc.picklerpc import PickleProtocol, PickleProtocolFactory
-from whizzer.rpc.msgpackrpc import MsgPackProtocol, MsgPackProtocolFactory
+from whizzer.rpc.picklerpc import  PickleProtocolFactory
+from whizzer.rpc.msgpackrpc import MsgPackProtocolFactory
 
 logger = logbook.Logger('forked!')
 
@@ -43,16 +44,19 @@ class AdderService(object):
 
     @remote
     def add(self, a, b):
-        logger.debug('adding some numbers')
         return a+b
 
+def server_stop(watcher, events):
+    logger.debug('got shutdown')
+    watcher.loop.unloop(pyev.EVUNLOOP_ALL)
 
 def server_main(loop, path):
     """Run in the client after the fork."""
+    loop.fork()
     logger.debug('forked function')
     sigintwatcher = pyev.Signal(signal.SIGINT, loop, lambda watcher, events: logger.info('interrupt ignored'))
     sigintwatcher.start()
-    sigtermwatcher = pyev.Signal(signal.SIGTERM, loop, lambda watcher, events: watcher.loop.unloop(pyev.EVUNLOOP_ALL))
+    sigtermwatcher = pyev.Signal(signal.SIGTERM, loop, server_stop)
     sigtermwatcher.start()
     adder = AdderService()
     dispatcher = ObjectDispatch(adder)
@@ -65,8 +69,10 @@ def server_main(loop, path):
 
     logger.debug('running server loop')
 
-    import cProfile
-    cProfile.runctx('loop.loop()', None, {'loop':loop}, 'server_profile') 
+    loop.loop()
+
+    logger.debug('server unlooped')
+
 
 def main():
     path = 'adder_socket'
@@ -95,7 +101,6 @@ def main():
     start = time.time()
     s = 0
     for i in range(10000):
-        logger.debug('adding')
         s = proxy.call('add', 1, s)
     stop = time.time()
 
@@ -103,7 +108,6 @@ def main():
 
     start = time.time()
     for i in range(10000):
-        logger.debug('adding')
         proxy.notify('add', 1, s)
     proxy.call('add', 1, s)
     stop = time.time()
@@ -127,7 +131,6 @@ def main():
     start = time.time()
     s = 0
     for i in range(10000):
-        logger.debug('adding')
         s = proxy.call('add', 1, s)
     stop = time.time()
 
@@ -135,7 +138,6 @@ def main():
 
     start = time.time()
     for i in range(10000):
-        logger.debug('adding')
         proxy.notify('add', 1, s)
     proxy.call('add', 1, s)
     stop = time.time()
@@ -145,7 +147,7 @@ def main():
     p.stop()
 
 if __name__ == "__main__":
-    stderr_handler = ColorizedStderrHandler(level='INFO')
+    stderr_handler = ColorizedStderrHandler(level='DEBUG')
     null_handler = NullHandler()
     with null_handler.applicationbound():
         with stderr_handler.applicationbound():
