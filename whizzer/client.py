@@ -67,16 +67,92 @@ class Connection(object):
         self.transport.close()
 
 
+class ConnectorStartedError(Exception):
+    """Connectors may only be started once."""
+
+
+class Connector(object):
+    """State machine for a connection to a remote socket."""
+
+    def __init__(self, loop, sock, addr, timeout):
+        self.loop = loop
+        self.sock = sock
+        self.addr = addr
+        self.timeout = timeout
+        self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
+        self.timeout_watcher = pyev.Timer(self.timeout, 0.0, self.loop, self._timeout)
+        self.deferred = Deferred(self.loop)
+        self.started = False
+        self.connected = False
+        self.timedout = False
+        self.errored = False
+
+    def start(self):
+        """Start the connector state machine."""
+        if self.started:
+            raise ConnectorStartedError()
+
+        self.started = True
+
+        try:
+            self.connect_watcher.start()
+            self.timeout_watcher.start()
+            self.sock.connect(self.addr)
+        except IOError as e:
+            self.errored = True
+            self._finish()
+            self.deferred.errback(e)
+
+        return self.deferred
+
+    def cancel(self):
+        """Cancel a connector from completing."""
+        if self.started and not self.connected and not self.timedout:
+            self.connect_watcher.stop()
+            self.timeout_watcher.stop()
+
+    def _connected(self, watcher, events):
+        """Connector is successful, return the socket."""
+        self.connected = True
+        self._finish()
+        self.deferred.callback(self.sock)
+
+    def _timeout(self, watcher, events):
+        """Connector timed out, raise a timeout error."""
+        self.timedout = True
+        self._finish()
+        self.deferred.errback(TimeoutError())
+
+    def _finish(self):
+        """Finalize the connector."""
+        self.connect_watcher.stop()
+        self.timeout_watcher.stop()
+
+
+class SocketClientConnectedError(object):
+    """Raised when a client is already connected."""
+
+
+class SocketClientConnectingError(object):
+    """Raised when a client is already connecting."""
+
+
 class SocketClient(object):
     """A simple socket client."""
     def __init__(self, loop, factory):
         self.loop = loop
         self.factory = factory
+        self.connector = None
         self.connection = None
         self.connect_deferred = None
+        
         self.sigint_watcher = pyev.Signal(signal.SIGINT, self.loop,
                                           self._interrupt)
         self.sigint_watcher.start()
+
+        self.connector = None
+        self.sock = None
+        self.addr = None
 
     def _interrupt(self, watcher, events):
         if self.connection:
@@ -84,55 +160,41 @@ class SocketClient(object):
 
     def _connect(self, sock, addr, timeout):
         """Start watching the socket for it to be writtable."""
-        
-        logger.debug("connecting to {}".format(addr))
+        if self.connection:
+            raise SocketClientConnectedError()
+
+        if self.connector:
+            raise SocketClientConnectingError()
+
+        self.connect_deferred = Deferred(self.loop)
         self.sock = sock
         self.addr = addr
-        d = Deferred(self.loop)
-        self.connect_deferred = d
+        self.connector = Connector(self.loop, sock, addr, timeout)
+        self.connector.deferred.add_callback(self._connected)
+        self.connector.deferred.add_errback(self._connect_failed)
+        self.connector.start()
 
-        try:
-            logger.debug('calling connect')
-            self.connect_watcher = pyev.Io(self.sock, pyev.EV_WRITE, self.loop, self._connected)
-            self.connect_watcher.start()
-            self.sock.connect(addr)
-            logger.debug('connect called')
-            self.timeout_watcher = pyev.Timer(timeout, 0.0, self.loop, self._connect_timeout)
-            self.timeout_watcher.start()
-            logger.debug('waiting for writtable socket')
-        except Exception as e:
-            d.errback(e)
+        return self.connect_deferred
 
-        return d
-
-    def _connected(self, watcher, events):
+    def _connected(self, sock):
         """When the socket is writtable, the socket is ready to be used."""
         logger.debug('socket connected, building protocol')
-        self.connect_watcher.stop()
-        self.timeout_watcher.stop()
-        self.connect_watcher = None
-        self.timeout_watcher = None
         self.protocol = self.factory.build(self.loop)
         self.connection = Connection(self.loop, self.sock, self.addr,
             self.protocol, self) 
-        
-        logger.info("connected to {}".format(self.addr))
-        self.timeout_watcher = pyev.Timer(0.1, 0.0, self.loop, lambda watcher, events: self.connect_deferred.callback(self.protocol))
-        self.timeout_watcher.start()
+        self.connector = None
+        self.connect_deferred.callback(self.protocol)
 
-    def _connect_timeout(self, watcher, events):
-        """Connect timed out."""
-        self.connect_watcher.stop()
-        self.timeout_watcher.stop()
-        self.connect_watcher = None
-        self.timeout_watcher = None
-        self.connect_deferred.errback(TimeoutError())
-
+    def _connect_failed(self, reason):
+        """Connect failed."""
+        self.connector = None
+        self.connect_deferred.errback(reason)
 
     def _disconnect(self):
         """Disconnect from a socket."""
-        self.connection.close()
-        self.connection = None
+        if self.connection:
+            self.connection.close()
+            self.connection = None
 
     def connect(self, timeout=5):
         """Should be overridden to create a socket and connect it.

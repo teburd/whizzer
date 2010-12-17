@@ -297,6 +297,7 @@ class Deferred(object):
                     self._result = cb(self._result, *cb_args, **cb_kwargs)
                     self._exception = False
                 except Exception as e:
+                    #logger.exception('deferred got exception while doing callback')
                     self._exception = True
                     self._result = e
                     self._tb_info = ''.join(traceback.format_tb(sys.exc_info()[2]))
@@ -305,6 +306,7 @@ class Deferred(object):
                     self._result = eb(self._result, *eb_args, **eb_kwargs)
                     self._exception = False
                 except Exception as e:
+                    #logger.exception('deferred got exception while doing callback')
                     self._exception = True
                     self._result = e
                     self._tb_info = ''.join(traceback.format_tb(sys.exc_info()[2]))
