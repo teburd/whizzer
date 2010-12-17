@@ -60,6 +60,7 @@
 import traceback
 import signal
 import sys
+import collections
 import logbook
 import pyev
 
@@ -144,7 +145,7 @@ class Deferred(object):
         self._result = None
         self._exception = False
         self._tb_info = None
-        self._callbacks = []
+        self._callbacks = collections.deque()
         self._last_exception = LastException()
 
     def add_callbacks(self, callback, errback=None, callback_args=None,
@@ -159,7 +160,7 @@ class Deferred(object):
         the first argument to the next errback in the chain.
         
         """
-        self._callbacks.append((callback, errback, callback_args,
+        self._callbacks.appendleft((callback, errback, callback_args,
                                callback_kwargs, errback_args,
                                errback_kwargs))
 
@@ -290,7 +291,7 @@ class Deferred(object):
         self._done = False
 
         while self._callbacks and not self._cancelled:
-            cb, eb, cb_args, cb_kwargs, eb_args, eb_kwargs = self._callbacks.pop(0)
+            cb, eb, cb_args, cb_kwargs, eb_args, eb_kwargs = self._callbacks.pop()
             if cb and not self._exception:
                 try:
                     self._result = cb(self._result, *cb_args, **cb_kwargs)
