@@ -69,7 +69,8 @@ def server_main(loop, path):
 
     logger.debug('running server loop')
 
-    loop.loop()
+    import cProfile
+    cProfile.runctx('loop.loop()', None, {'loop':loop}, 'server_profile')
 
     logger.debug('server unlooped')
 
