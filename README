@@ -34,3 +34,10 @@ Whizzer attempts to have the following features packaged with it.
 * Fast RPC protocol implementations (msgpack-rpc, json-rpc, pickle-rpc)
     * 100k+ notifies/s (one way calls, no responses)
     * 20k+ calls/s (request/response rpc calls)
+
+
+Ad-Hoc Benchmarks
+=================
+
+On my Athlon II X4 I can get the examples/servicefork.py to show close to
+400k notifications a second.
