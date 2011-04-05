@@ -139,7 +139,7 @@ def main():
 
     # to push the server further (to see how fast it will really go...)
     # just add more clients!
-    for x in range(20):
+    for x in range(30):
         bpath = "adder_bench_{}".format(x)
         client = spawn(AdderBench, loop, bpath, bpath, path)
         bproxy = ServiceProxy(loop, "adder_bench_1")
