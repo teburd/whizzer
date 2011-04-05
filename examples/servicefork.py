@@ -53,8 +53,7 @@ class Adder(Service):
 
     def stats(self, watcher, events):
         diff = time.time() - self.last_stats
-        self.logger.info("{} calls in {} seconds, {} calls per second".format(
-            self.add_calls, diff, self.add_calls/diff))
+        self.logger.info("%f calls in %f seconds, %f calls per second" % (self.add_calls, diff, self.add_calls/diff))
         self.add_calls = 0
         self.last_stats = time.time()
 
@@ -140,7 +139,7 @@ def main():
     # to push the server further (to see how fast it will really go...)
     # just add more clients!
     for x in range(20):
-        bpath = "adder_bench_{}".format(x)
+        bpath = "adder_bench_%i" % x
         client = spawn(AdderBench, loop, bpath, bpath, path)
         bproxy = ServiceProxy(loop, "adder_bench_1")
         bproxy.connect()

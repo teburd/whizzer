@@ -62,7 +62,7 @@ class EchoStatistics(object):
         self.timer.start()
 
     def _print_stats(self, watcher, events):
-        logger.error('echoes per seconds {}'.format(self.factory.echoes/2.0))
+        logger.error('echoes per seconds %f' % (self.factory.echoes/2.0))
         self.factory.echoes = 0
 
 def main():
