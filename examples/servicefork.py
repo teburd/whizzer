@@ -83,10 +83,10 @@ class AdderBench(Service):
         self.stats_timer.start()
 
     def stats(self, watcher, events):
-        self.bench_notify(50000)
+        self.bench_notify(20000)
         diff = time.time() - self.last_stats
-        self.logger.info("{} calls in {} seconds, {} calls per second".format(
-                    self.add_calls, diff, self.add_calls/diff))
+        #self.logger.info("{} calls in {} seconds, {} calls per second".format(
+        #            self.add_calls, diff, self.add_calls/diff))
         self.add_calls = 0
         self.last_stats = time.time()
 
@@ -110,14 +110,14 @@ class AdderBench(Service):
 
     @remote
     def bench_notify(self, calls):
-        self.logger.info("notify")
+        #self.logger.info("notify")
         start = time.time()
         for x in range(calls):
             self.proxy.notify('add', 1, 1)
         self.proxy.call('add', 1, 1)
         end = time.time()
-        self.logger.info("took {} to perform {} notifies, {} notifies per second".format(
-            end-start, calls, calls/(end-start)))
+        #self.logger.info("took {} to perform {} notifies, {} notifies per second".format(
+        #    end-start, calls, calls/(end-start)))
 
 
 def main():
@@ -136,7 +136,10 @@ def main():
 
     clients = []
     proxies = []
-    for x in range(4):
+
+    # to push the server further (to see how fast it will really go...)
+    # just add more clients!
+    for x in range(20):
         bpath = "adder_bench_{}".format(x)
         client = spawn(AdderBench, loop, bpath, bpath, path)
         bproxy = ServiceProxy(loop, "adder_bench_1")
