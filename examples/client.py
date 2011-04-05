@@ -29,11 +29,12 @@ import pyev
 sys.path.insert(0, '..')
 
 import whizzer
+from whizzer import protocol
 
 logger = logbook.Logger('echo_client')
 
 
-class EchoClientProtocol(whizzer.Protocol):
+class EchoClientProtocol(protocol.Protocol):
     def connection_made(self, address):
         """When the connection is made, send something."""
         logger.info("connection made to {}".format(address))

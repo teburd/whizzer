@@ -19,10 +19,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import sys
 import signal
 import time
 
 import pyev
+
+sys.path.insert(0, '..')
 
 from whizzer.rpc.dispatch import remote
 from whizzer.rpc.service import Service, ServiceProxy, spawn
@@ -48,7 +51,7 @@ class Adder(Service):
         self.listen_init()
         self.stats_init()
         self.logger.info("starting")
-        self.loop.loop()
+        self.loop.start()
 
     @remote
     def add(self, a, b):
@@ -90,7 +93,7 @@ class AdderBench(Service):
         self.stats_init()
         self.proxy_init()
         self.logger.info("starting")
-        self.loop.loop()
+        self.loop.start()
 
     @remote
     def bench_notify(self, calls):
@@ -110,7 +113,7 @@ def main():
 
     loop = pyev.default_loop()
 
-    sigwatcher = pyev.Signal(signal.SIGINT, loop, lambda watcher, events: watcher.loop.unloop(pyev.EVUNLOOP_ALL))
+    sigwatcher = pyev.Signal(signal.SIGINT, loop, lambda watcher, events: watcher.loop.stop(pyev.EVBREAK_ALL))
     sigwatcher.start()
 
     service = spawn(Adder, loop, name, path)
@@ -128,7 +131,7 @@ def main():
         clients.append(client)
         proxies.append(bproxy)
 
-    loop.loop()
+    loop.start()
 
 if __name__ == "__main__":
     main()

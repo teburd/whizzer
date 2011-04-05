@@ -2,7 +2,7 @@ import pyev
 import time
 
 def stop(watcher, events):
-    watcher.loop.unloop()
+    watcher.loop.stop()
 
 
 def timed(watcher, events):
@@ -18,7 +18,7 @@ t1.start()
 t2.start()
 
 before = time.time()
-loop.loop()
+loop.start()
 after = time.time()
 
 diff = after-before

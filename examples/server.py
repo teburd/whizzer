@@ -30,11 +30,12 @@ import pyev
 sys.path.insert(0, '..')
 
 import whizzer
+from whizzer import protocol
 
 logger = logbook.Logger('echo server')
 
 
-class EchoProtocolFactory(whizzer.ProtocolFactory):
+class EchoProtocolFactory(protocol.ProtocolFactory):
     def __init__(self):
         self.echoes = 0
 
@@ -42,7 +43,7 @@ class EchoProtocolFactory(whizzer.ProtocolFactory):
         return EchoProtocol(loop, self)
 
 
-class EchoProtocol(whizzer.Protocol):
+class EchoProtocol(protocol.Protocol):
     def __init__(self, loop, factory):
         self.loop = loop
         self.factory = factory

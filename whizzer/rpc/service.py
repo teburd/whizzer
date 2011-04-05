@@ -114,13 +114,13 @@ class Service(object):
         self.signal_init()
         self.listen_init()
         self.logger.info('starting')
-        self.loop.loop()
+        self.loop.start()
 
     @remote
     def stop(self, reason=None):
         """Shutdown the service with a reason."""
         self.logger.info('stopping')
-        self.loop.unloop(pyev.EVUNLOOP_ALL)
+        self.loop.stop(pyev.EVBREAK_ALL)
 
     @remote
     def terminate(self, reason=None):

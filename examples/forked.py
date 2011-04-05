@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import sys
 import time
 import signal
 
@@ -27,6 +28,9 @@ from logbook import NullHandler
 from logbook.more import ColorizedStderrHandler
 
 import pyev
+
+
+sys.path.insert(0, '..')
 
 from whizzer.process import Process
 from whizzer.server import UnixServer
