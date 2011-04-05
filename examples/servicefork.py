@@ -19,6 +19,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
+""" This example starts up an adder service and 4 adder clients that are themselves
+benchmarking sevices (which can have bench_notify remotely called)
+
+At the moment the benchmarking services simply do 1000 notifies and a single
+rpc call every second or so, you can easily modify this to really push the
+adder service on your machine to see what is possible.
+
+"""
+
+
+
 import sys
 import signal
 import time
@@ -71,6 +83,7 @@ class AdderBench(Service):
         self.stats_timer.start()
 
     def stats(self, watcher, events):
+        self.bench_notify(50000)
         diff = time.time() - self.last_stats
         self.logger.info("{} calls in {} seconds, {} calls per second".format(
                     self.add_calls, diff, self.add_calls/diff))
@@ -101,7 +114,7 @@ class AdderBench(Service):
         start = time.time()
         for x in range(calls):
             self.proxy.notify('add', 1, 1)
-        self.proxy.call('add')
+        self.proxy.call('add', 1, 1)
         end = time.time()
         self.logger.info("took {} to perform {} notifies, {} notifies per second".format(
             end-start, calls, calls/(end-start)))
