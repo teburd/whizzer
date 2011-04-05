@@ -66,7 +66,7 @@ class TestSocketTransport(unittest.TestCase):
         msg = b'hello'
         t = SocketTransport(loop, self.ssock, self.read, self.close)
         t.write(msg)
-        loop.loop(pyev.EVLOOP_NONBLOCK)
+        loop.start(pyev.EVRUN_NOWAIT)
         rmsg = self.csock.recv(len(msg))
         self.assertEqual(rmsg, msg)
 
@@ -110,7 +110,7 @@ class TestSocketTransport(unittest.TestCase):
         t.stop()
         self.csock.recv(count*len(msg))
         t.start()
-        loop.loop(pyev.EVLOOP_NONBLOCK)
+        loop.start(pyev.EVRUN_NOWAIT)
         self.assertTrue(t.write == t.unbuffered_write)
 
     def test_close_buffered_write(self):
@@ -133,7 +133,7 @@ class TestSocketTransport(unittest.TestCase):
             t.write(msg)
         t.write(msg)
         self.csock.recv(count*len(msg))
-        loop.loop(pyev.EVLOOP_NONBLOCK)
+        loop.start(pyev.EVRUN_NOWAIT)
         self.assertTrue(t.write == t.unbuffered_write)
 
     def test_overflow_write(self):
@@ -144,14 +144,14 @@ class TestSocketTransport(unittest.TestCase):
         t = SocketTransport(loop, self.ssock, self.read, self.close)
         t.start()
         self.csock.send(b'hello')
-        loop.loop(pyev.EVLOOP_NONBLOCK)
+        loop.start(pyev.EVRUN_NOWAIT)
         self.assertEqual(self.data, b'hello')
 
     def test_error(self):
         t = SocketTransport(loop, self.ssock, self.read, self.close)
         self.csock.close()
         t.write(b'hello')
-        loop.loop(pyev.EVLOOP_NONBLOCK)
+        loop.start(pyev.EVRUN_NOWAIT)
         self.assertTrue(self.reason is not None)
 
 if __name__ == '__main__':

@@ -259,7 +259,7 @@ class Deferred(object):
                 self._timer.start()
 
             while self._wait and not self._done and not self._cancelled:
-                self.loop.loop(pyev.EVLOOP_ONESHOT)
+                self.loop.start(pyev.EVRUN_ONCE)
 
         if self._cancelled:
             raise CancelledError()
