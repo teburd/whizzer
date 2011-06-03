@@ -1,39 +1,37 @@
 Whizzer
 =======
 
-Whizzer is a python library to make writting fast non-blocking socket servers
-using relatively simple.
+Whizzer is a python library to help write fast non-blocking socket servers.
 
-Whizzer supports writting event/callback driven programs typically the form
-of state machines. This is probably the sanest way to write an event driven
-program as its very clear what the state of each task is in at all times.
+Whizzer uses class templates to write callback driven programs. Callbacks
+are initiated from the C event loop library libev and its python wrapper
+pyev. The event loop itself is as fast as any other modern C event loop using
+epoll and heap timers. It is much faster than an event loop written purely
+in python.
 
-Whizzer supports coroutines as well without any form of stack storing by
-recursively  calling in to the main loop. Coroutines are limited only by the
+Whizzer supports limited coroutines as well without any form of stack storing
+by recursively calling in to the main loop. Coroutines are limited by the
 size of the stack and the stack depth limit set in python both of which are
-relatively simple to adjust usually. It does not attempt to store task state
-between task switching in any novel ways that may break C extensions.
+relatively simple to adjust though limited. It does not attempt to store task
+state between task switching in any novel ways that may break C extensions.
 
-Whizzer might look similiar in nature to Twisted. Thats because I believe Twisted 
-does things right in many ways. It is not my goal to reinvent all of Twisted. 
-I simply wanted a modern and fast socket event handling library that was based
-on pyev. Part of that was my experience with libev before even using Twisted
-and part of that simply has to do with style.
+Whizzer is similiar in style to twisted in that it provides class templates
+which may be derived and further defined to implement only the necessary 
+functionality. Implementing a protocol in Whizzer means deriving the Protocol
+class and implementing a few methods.
 
-Whizzer strives to be very fast and very well tested. Whizzer strives
-to have several things included to make fast web application development
-of complex applications simpler.
+Whizzer strives to be very fast, tested, and relatively simple.
 
 Whizzer attempts to have the following features packaged with it.
 
 * Python 2/3 compatible
     * Namely Python 2.7 and python 3.2 or better
-* WSGI/Web3 Server
-    * WebSocket extension (environ['wsgi.websocket'])
-    * Fast, 3000+ req/s of "hello world" with many concurrent connections.
 * Fast RPC protocol implementations (msgpack-rpc, json-rpc, pickle-rpc)
     * 100k+ notifies/s (one way calls, no responses)
     * 20k+ calls/s (request/response rpc calls)
+
+In the future it would be nice to have a WSGI handler based on Ryan Dahl's C
+http protocol parser.
 
 
 Ad-Hoc Benchmarks
