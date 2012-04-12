@@ -200,6 +200,7 @@ class TcpServer(SocketServer):
     def __init__(self, loop, factory, host, port, backlog=256):
         self.address = (host, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((host, port))
         self.sock.listen(backlog)
         self.sock.setblocking(False)
